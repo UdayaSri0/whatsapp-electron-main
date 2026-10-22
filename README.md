@@ -1,242 +1,134 @@
 # WhatsApp Electron for Linux
 
-An unofficial, security-conscious Electron wrapper for WhatsApp Web on Linux.
-It provides a native desktop window, tray integration, notifications, unread
-badges, and working voice and video call controls.
+Modified 2026-10-22 by UdayaSri0; original implementation by Dominik Lübben.
 
-> [!IMPORTANT]
-> This project is not affiliated with, endorsed by, or sponsored by WhatsApp
-> or Meta. WhatsApp is a trademark of Meta Platforms, Inc.
+An unofficial Linux desktop wrapper for the official WhatsApp Web client.
+Messaging, authentication and encryption are provided by WhatsApp Web. This
+project is not affiliated with, endorsed by or sponsored by WhatsApp or Meta.
+WhatsApp and its artwork are trademarks of their respective owners.
 
-> [!NOTE]
-> This is a **Linux-only** desktop application. Native Arch Linux, Debian/Ubuntu,
-> and Fedora packages are provided for x86_64, together with a portable
-> AppImage. No Windows or macOS packages are provided.
+This fork is maintained at [UdayaSri0/whatsapp-electron-main](https://github.com/UdayaSri0/whatsapp-electron-main).
+Original implementation: [Dominik Lübben / whatsapp-electron](https://github.com/DomiLuebben/whatsapp-electron).
+Original authorship and GPL-2.0-or-later licensing are preserved.
 
-## Downloads
+## Current status
 
-The Linux 1.1.1 release provides:
+Version 1.1.1 is the starting version for this foundation contribution; these
+changes are unreleased. Calling support in WhatsApp Web does not establish that
+calls work in this wrapper. Actual microphone, camera, incoming/outgoing/group
+calls and Linux desktop behavior still require the
+[manual validation matrix](docs/calling-validation.md).
 
-- [Debian/Ubuntu amd64 package](https://github.com/DomiLuebben/whatsapp-electron/releases/download/v1.1.1/whatsapp-electron-1.1.1-amd64.deb)
-- [Fedora x86_64 RPM package](https://github.com/DomiLuebben/whatsapp-electron/releases/download/v1.1.1/whatsapp-electron-1.1.1-x86_64.rpm)
-- [Arch Linux x86_64 package](https://github.com/DomiLuebben/whatsapp-electron/releases/download/v1.1.1/whatsapp-electron-1.1.1-1-x86_64.pkg.tar.zst)
-- [Portable x86_64 AppImage](https://github.com/DomiLuebben/whatsapp-electron/releases/download/v1.1.1/WhatsApp-1.1.1-x86_64.AppImage)
-- [Source code archive](https://github.com/DomiLuebben/whatsapp-electron/releases/download/v1.1.1/whatsapp-electron-1.1.1-source.tar.gz)
-- [SHA-256 checksums](https://github.com/DomiLuebben/whatsapp-electron/releases/download/v1.1.1/SHA256SUMS)
-- [All files and release notes](https://github.com/DomiLuebben/whatsapp-electron/releases/tag/v1.1.1)
+**Screen sharing is deliberately blocked on the pinned Electron runtime**:
+its permission API cannot safely distinguish modern display capture from legacy
+capture before approval. See [security boundaries](docs/security.md). No passing
+mock test or returned capture source is evidence of working screen sharing.
 
-Install the native package for your distribution with one of these commands:
+## Features and defaults
 
-```bash
-# Debian or Ubuntu
-sudo apt install ./whatsapp-electron-1.1.1-amd64.deb
+- Sandboxed remote renderer, context isolation, web security and no Node access.
+- Device permissions restricted to the current main window at exactly
+  `https://web.whatsapp.com`; explicit audio/video types only.
+- Navigation guards, denied new windows/webviews and allowlisted external links.
+- Persistent window geometry, unread title badges and bounded network/crash retries.
+- Optional tray and start-minimized preferences, with a visible fallback when
+  tray construction fails. New profiles close normally by default.
+- English application menus and explicit AppImage desktop shortcut installation.
+- Existing profile, app ID and session storage preserved; no automatic updater.
 
-# Fedora
-sudo dnf install ./whatsapp-electron-1.1.1-x86_64.rpm
+## Build and run
 
-# Arch Linux
-sudo pacman -U ./whatsapp-electron-1.1.1-1-x86_64.pkg.tar.zst
-```
-
-The AppImage needs no installation:
-
-```bash
-chmod +x ./WhatsApp-1.1.1-x86_64.AppImage
-./WhatsApp-1.1.1-x86_64.AppImage
-```
-
-## Why voice and video calls work
-
-WhatsApp Web may hide its call buttons when it detects Electron in Chromium's
-User-Agent Client Hints. Changing only the traditional `User-Agent` header is
-not enough because the site can also inspect `Sec-CH-UA` headers and
-`navigator.userAgentData`.
-
-This wrapper presents one consistent, regular Chromium identity before
-WhatsApp Web is loaded:
-
-- Electron is removed from the navigation and subresource User-Agent.
-- `Sec-CH-UA` and the high-entropy Client Hint headers are kept consistent.
-- `navigator.userAgentData` is patched in the main JavaScript world before the
-  page scripts run.
-- Chromium background throttling is disabled so ongoing calls remain stable
-  when the window is not focused.
-- Camera and microphone access is permitted only for trusted HTTPS WhatsApp
-  origins and only inside the main application window.
-- Screen sharing requires an explicit user gesture and a manual screen
-  selection instead of silently choosing a source.
-
-As a result, WhatsApp Web exposes its voice and video call interface and can
-use the camera and microphone through Electron. This relies on WhatsApp Web's
-current browser checks, so a future service-side change may require an update
-to the wrapper.
-
-## Features
-
-- Voice and video calls through WhatsApp Web
-- Native Wayland support through current Electron releases
-- Camera, microphone, notification, fullscreen, and display-capture permissions
-  restricted to trusted WhatsApp HTTPS origins
-- Explicit screen selection for screen sharing
-- Tray icon, unread badge, and persistent window position
-- Automatic retry after temporary network or renderer failures
-- External links opened safely in the system browser
-- Sandboxed renderer with Node.js integration disabled
-- Restrictive Electron fuses in packaged builds
-
-## Build requirements
-
-- Linux on x86_64
-- Node.js 24 for reproducible source builds (see `.nvmrc`)
-- npm, which is included with Node.js when using a version manager
-- A working camera and microphone for calls
-- PipeWire and a suitable XDG desktop portal for screen sharing on Wayland
-
-Node.js 26 is intentionally not accepted by the build check yet because the
-currently used electron-builder release does not support it reliably.
-
-The commands below use [nvm](https://github.com/nvm-sh/nvm) to select Node.js
-24. An equivalent Node.js version manager can be used instead.
-
-## Build on Arch Linux
+Use a native Linux filesystem (such as ext4/btrfs), Linux x86_64 and Node.js 24 (`.nvmrc`).
+exFAT does not support the symlinks needed by npm; clone under your Linux home directory for builds. Node 22.12+ is also supported within
+22.x. Node 23/25/26 are outside this contribution's tested build contract.
+The host Node version builds the app; Electron bundles a separate runtime.
 
 ```bash
-sudo pacman -S --needed base-devel git
-
-git clone https://github.com/DomiLuebben/whatsapp-electron.git
-cd whatsapp-electron
-nvm install 24
-nvm use 24
+git clone https://github.com/UdayaSri0/whatsapp-electron-main.git
+cd whatsapp-electron-main
+nvm install
+nvm use
 npm ci
-npm test
-npm run build:dir
-
-cd arch-pkg
-makepkg -sfc
-```
-
-The finished native Arch package is written to
-`arch-pkg/whatsapp-electron-1.1.1-1-x86_64.pkg.tar.zst`. Install it with
-`sudo pacman -U` as shown in the download section.
-
-## Build on Debian or Ubuntu
-
-These steps build a native `.deb` package:
-
-```bash
-sudo apt update
-sudo apt install build-essential git xz-utils
-
-git clone https://github.com/DomiLuebben/whatsapp-electron.git
-cd whatsapp-electron
-nvm install 24
-nvm use 24
-npm ci
-npm test
-npm run build:deb
-```
-
-The package is written to `dist/whatsapp-electron-1.1.1-amd64.deb`. Install it
-with `sudo apt install ./dist/whatsapp-electron-1.1.1-amd64.deb`.
-
-## Build on Fedora
-
-These steps build a native `.rpm` package. `rpm-build` provides the `rpmbuild`
-tool required by the RPM target:
-
-```bash
-sudo dnf install gcc-c++ make git rpm-build
-
-git clone https://github.com/DomiLuebben/whatsapp-electron.git
-cd whatsapp-electron
-nvm install 24
-nvm use 24
-npm ci
-npm test
-npm run build:rpm
-```
-
-The package is written to `dist/whatsapp-electron-1.1.1-x86_64.rpm`. Install it
-with `sudo dnf install ./dist/whatsapp-electron-1.1.1-x86_64.rpm`.
-
-## Build the portable AppImage
-
-After installing the build tools for your distribution and selecting Node.js
-24, run:
-
-```bash
-npm ci
-npm test
-npm run build
-```
-
-The resulting portable file is written to:
-
-```text
-dist/WhatsApp-1.1.1-x86_64.AppImage
-```
-
-Make it executable and start it with:
-
-```bash
-chmod +x dist/WhatsApp-1.1.1-x86_64.AppImage
-./dist/WhatsApp-1.1.1-x86_64.AppImage
-```
-
-On a Linux build host that also has `rpmbuild`, all three electron-builder
-formats can be produced in one pass:
-
-```bash
-npm run build:linux
-```
-
-## Run from source
-
-After installing the distribution prerequisites and selecting Node.js 24:
-
-```bash
-npm ci
+npm run check
 npm test
 npm start
 ```
 
-Scan the QR code with the WhatsApp mobile application. The session is stored
-locally in Electron's `~/.config/WhatsApp` profile and is not removed when the
-application is updated.
+Link the account using WhatsApp Web's QR flow. Existing login data remains in
+Electron's `WhatsApp` userData profile (normally `~/.config/WhatsApp`, subject to
+XDG configuration). Updates do not delete it. Do not delete the profile as a
+troubleshooting step unless you intend to unlink the session.
 
-To start a call, open a conversation and use the phone or camera button shown
-by WhatsApp Web. Allow camera and microphone access in your desktop environment
-when prompted.
+## Browser compatibility and calling
 
-The generated package archives, `node_modules`, and Electron build output are
-excluded from Git. The release source archive is generated directly from the
-Git tag and therefore contains only tracked source files.
+The inherited Chromium identity workaround remains enabled pending actual
+comparison testing. It now applies only to the WhatsApp window and attributable
+WhatsApp resource requests. No global app/session user agent is changed; the
+preload patches only the exact main-frame Web origin and exposes no native APIs.
+Requests without an attributable window retain their original identity.
 
-## Security and privacy
+Test ordinary Electron/Chromium identity first by quitting every instance, then:
 
-- The application loads the official `https://web.whatsapp.com/` client. It
-  does not proxy messages through a custom server.
-- Navigation inside the application is limited to WhatsApp Web. Other safe web,
-  telephone, and email links are handed to the operating system.
-- Media permissions are rejected for non-WhatsApp origins.
-- WebViews and Node.js access in the renderer are disabled.
-- Login data remains in the local Electron profile.
+```bash
+WHATSAPP_BROWSER_IDENTITY=native npm start
+```
 
-The Chromium identity adjustment is limited to WhatsApp-owned origins. It is
-used to expose browser functionality that WhatsApp Web otherwise hides from
-Electron clients; it does not bypass account authentication or WhatsApp's
-end-to-end encryption.
+Quit and restart without the variable to compare compatibility mode with the
+same account. Background throttling remains disabled for calling. The
+[calling matrix](docs/calling-validation.md) covers device denial/recovery,
+audio output, background calls, screen cancellation and Wayland/X11.
 
-## Limitations
+## Linux desktop behavior
 
-- Only Linux x86_64 is packaged at the moment.
-- The AppImage does not include an automatic updater.
-- WhatsApp Web is a third-party service and can change without notice.
-- Availability of calls can still depend on the WhatsApp account, region,
-  connected devices, and service-side rollout.
+Tray support depends on the desktop and its StatusNotifier/AppIndicator provider.
+A successful tray constructor does not prove the icon is visible. On desktops
+without a usable tray, launch with `WHATSAPP_DISABLE_TRAY=1` to force a visible
+window and normal close behavior, overriding saved start-minimized preferences.
+Launching a second instance restores the existing window.
+
+AppImage startup no longer writes launcher files automatically. Use the tray's
+**Install AppImage desktop shortcut** action to opt in. An existing different
+launcher is preserved. The action writes only these user-owned files:
+
+- `~/.local/share/applications/whatsapp-desktop.desktop`
+- `~/.local/share/icons/hicolor/512x512/apps/whatsapp-desktop.png`
+
+Remove those files to undo integration if they are this application's files.
+Move an AppImage before installing its shortcut; an existing launcher referring
+to an old location is intentionally not overwritten. This contribution does not
+add autostart; future autostart must be explicit and reversible.
+
+Wayland capture requires PipeWire and an appropriate XDG desktop portal, but those
+components do not resolve the pinned runtime's capture permission limitation.
+No drivers, kernel settings, Secure Boot or system-wide graphics options need
+changing. Actual GNOME/KDE, Ubuntu/Mint, X11/Wayland and GPU coverage is pending.
+
+## Packaging
+
+```bash
+npm run build:dir    # unpacked app
+npm run build:deb    # Debian/Ubuntu
+npm run build:rpm    # Fedora; requires rpmbuild
+npm run build       # AppImage
+npm run build:linux # AppImage + DEB + RPM
+```
+
+Local build commands never publish. See [packaging and CI](docs/packaging.md)
+for prerequisites, Arch packaging, source archives, checksums and candidate
+workflows. No production release is authorized by successful unit tests alone.
+
+## Technical records
+
+- [Baseline audit](docs/technical-audit.md)
+- [Security policy and capture limitation](docs/security.md)
+- [Calling and Linux validation matrix](docs/calling-validation.md)
+- [Validation and delivery record](docs/validation.md)
+- [Changelog](CHANGELOG.md)
 
 ## License
 
-The wrapper source code is licensed under
-[GPL-2.0-or-later](LICENSE). Electron, Chromium, WhatsApp Web, and the WhatsApp
-name and artwork remain subject to their respective licenses and trademarks.
+Wrapper source: [GNU GPL-2.0-or-later](LICENSE). Original author Dominik Lübben;
+this fork preserves upstream credits. Electron, Chromium, dependencies and the
+WhatsApp client remain subject to their respective licenses. Binary candidates
+include the wrapper license and Electron/Chromium notices; corresponding source
+archives must accompany distributions as described in the packaging guide.

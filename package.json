@@ -2,7 +2,7 @@
   "name": "whatsapp-electron",
   "productName": "WhatsApp",
   "version": "1.1.1",
-  "description": "Unofficial WhatsApp Web desktop wrapper for Linux with voice and video calls",
+  "description": "Unofficial WhatsApp Web desktop wrapper for Linux",
   "author": {
     "name": "Dominik Lübben",
     "email": "dominikluebben@googlemail.com"
@@ -83,7 +83,7 @@
       "maintainer": "UdayaSri0",
       "vendor": "UdayaSri0; original wrapper by Dominik Lübben",
       "synopsis": "WhatsApp Web Desktop",
-      "description": "Unofficial WhatsApp Web desktop wrapper with tray integration, native notifications, and voice/video calls.",
+      "description": "Unofficial WhatsApp Web desktop wrapper with tray integration and native notifications.",
       "executableName": "whatsapp",
       "desktop": {
         "entry": {
