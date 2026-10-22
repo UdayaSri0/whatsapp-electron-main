@@ -18,7 +18,7 @@ function fixture(t) {
 test('explicit shortcut creation is idempotent and escapes desktop field codes', t => {
     const options = fixture(t);
     const installed = installDesktopShortcut(options);
-    assert.match(fs.readFileSync(installed.desktopFile, 'utf8'), /Exec="\/home\/user\/WhatsApp 100%%\.AppImage" %U/);
+    assert.match(fs.readFileSync(installed.desktopFile, 'utf8'), /Exec=\/usr\/bin\/env -- "\/home\/user\/WhatsApp 100%%\.AppImage" %U/);
     assert.equal(fs.readFileSync(installed.iconFile, 'utf8'), 'test icon');
     const original = fs.statSync(installed.desktopFile).ino;
     assert.deepEqual(installDesktopShortcut(options), installed);
@@ -69,7 +69,7 @@ test('failed icon installation rolls back newly created launcher and preserves d
 
 test('invalid AppImage paths create no shortcut files', t => {
     const options = fixture(t);
-    for (const appImagePath of ['relative.AppImage', '/tmp/bad\npath', '', undefined]) {
+    for (const appImagePath of ['relative.AppImage', '/tmp/bad\npath', '/tmp/a=b.AppImage', '', undefined]) {
         assert.throws(() => installDesktopShortcut({ ...options, appImagePath }), /Invalid/);
     }
     assert.deepEqual(fs.readdirSync(options.homeDir), ['source.png']);

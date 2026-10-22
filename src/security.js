@@ -34,8 +34,12 @@ function externalUrl(rawUrl) {
 }
 
 function desktopExecArgument(value) {
-    if (typeof value !== 'string' || value.length === 0 || /[\r\n\0]/.test(value)) return null;
-    return `"${value.replace(/%/g, '%%').replace(/[\\`"$]/g, character => `\\${character}`)}"`;
+    if (typeof value !== 'string' || value.length === 0 || /[=\u0000-\u001f\u007f]/.test(value)) return null;
+    // Desktop entries decode string escapes before decoding Exec argument
+    // quoting. Escape those two layers separately (a literal backslash needs
+    // four in the file). This is not shell escaping.
+    const argument = value.replace(/%/g, '%%').replace(/[\\`"$]/g, character => `\\${character}`);
+    return `"${argument.replace(/\\/g, '\\\\')}"`;
 }
 
 module.exports = {

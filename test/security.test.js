@@ -37,7 +37,16 @@ test('external links allow secure web, mail and telephone URLs only', () => {
 
 test('desktop Exec paths are quoted without allowing line injection', () => {
     assert.equal(desktopExecArgument('/tmp/Whats App.AppImage'), '"/tmp/Whats App.AppImage"');
-    assert.equal(desktopExecArgument('/tmp/a"$`\\b'), '"/tmp/a\\"\\$\\`\\\\b"');
+    assert.equal(desktopExecArgument('/tmp/a"b'), String.raw`"/tmp/a\\"b"`);
+    assert.equal(desktopExecArgument('/tmp/a`b'), '"/tmp/a' + '\\'.repeat(2) + '`b"');
     assert.equal(desktopExecArgument('/tmp/app\nName=Injected'), null);
     assert.equal(desktopExecArgument('/tmp/100%/a%U.AppImage'), '"/tmp/100%%/a%%U.AppImage"');
+});
+
+test('desktop executable paths reject unsupported equals and control characters', () => {
+    for (const value of ['/tmp/a=b.AppImage', '/tmp/a\tb', '/tmp/a\u0001b', '/tmp/a\u007fb', '', null]) {
+        assert.equal(desktopExecArgument(value), null);
+    }
+    assert.equal(desktopExecArgument('/tmp/a\\b'), String.raw`"/tmp/a\\\\b"`);
+    assert.equal(desktopExecArgument('/tmp/a$b'), String.raw`"/tmp/a\\$b"`);
 });

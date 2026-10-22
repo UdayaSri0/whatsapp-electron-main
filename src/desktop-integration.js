@@ -23,7 +23,10 @@ function installDesktopShortcut({ appImagePath, homeDir, iconPath }) {
         '[Desktop Entry]',
         'Name=WhatsApp (unofficial)',
         'Comment=WhatsApp Web Desktop',
-        `Exec=${executable} %U`,
+        // GIO checks the executable before expanding %% field escapes. With a
+        // literal percent in the path, use env as the executable and pass the
+        // absolute AppImage path as an argument. No shell is involved.
+        `Exec=${appImagePath.includes('%') ? '/usr/bin/env -- ' : ''}${executable} %U`,
         'Icon=whatsapp-desktop',
         'Terminal=false',
         'Type=Application',
