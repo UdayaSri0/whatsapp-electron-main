@@ -1,14 +1,14 @@
 'use strict';
 
+// Modified 2026-10-22 by the UdayaSri0 fork: security regressions.
+// Original tests by Dominik Lübben; GPL-2.0-or-later.
+
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const {
     desktopExecArgument,
     externalUrl,
     isAllowedNavigation,
-    isWhatsAppOrigin,
-    permissionCheckOrigin,
-    permissionRequestOrigin,
 } = require('../src/security');
 
 test('only the WhatsApp Web HTTPS host may stay in the app window', () => {
@@ -16,14 +16,9 @@ test('only the WhatsApp Web HTTPS host may stay in the app window', () => {
     assert.equal(isAllowedNavigation('https://www.whatsapp.com/'), false);
     assert.equal(isAllowedNavigation('http://web.whatsapp.com/'), false);
     assert.equal(isAllowedNavigation('https://web.whatsapp.com.evil.test/'), false);
-});
-
-test('permissions are limited to HTTPS WhatsApp origins', () => {
-    assert.equal(isWhatsAppOrigin('https://web.whatsapp.com/'), true);
-    assert.equal(isWhatsAppOrigin('https://media.fra1-1.fna.whatsapp.net/'), true);
-    assert.equal(isWhatsAppOrigin('http://web.whatsapp.com/'), false);
-    assert.equal(isWhatsAppOrigin('https://whatsapp.com.evil.test/'), false);
-    assert.equal(isWhatsAppOrigin('not a url'), false);
+    assert.equal(isAllowedNavigation('https://web.whatsapp.com:444/'), false);
+    assert.equal(isAllowedNavigation('https://user:password@web.whatsapp.com/'), false);
+    assert.equal(isAllowedNavigation('https://web.whatsapp.com:443/'), true);
 });
 
 test('external links allow secure web, mail and telephone URLs only', () => {
@@ -33,21 +28,16 @@ test('external links allow secure web, mail and telephone URLs only', () => {
     assert.equal(externalUrl('http://example.com/'), 'http://example.com/');
     assert.equal(externalUrl('file:///etc/passwd'), null);
     assert.equal(externalUrl('javascript:alert(1)'), null);
+    assert.equal(externalUrl('https://user:secret@example.com/'), null);
+    assert.equal(externalUrl('mailto:test@example.com?subject=test%0d%0aBcc:other@example.com'), null);
+    assert.equal(externalUrl('tel:--unsafe-option'), null);
+    assert.equal(externalUrl('https://example.com/\nnext'), null);
+    assert.equal(externalUrl('whatsapp://send?text=hello'), null);
 });
 
 test('desktop Exec paths are quoted without allowing line injection', () => {
     assert.equal(desktopExecArgument('/tmp/Whats App.AppImage'), '"/tmp/Whats App.AppImage"');
     assert.equal(desktopExecArgument('/tmp/a"$`\\b'), '"/tmp/a\\"\\$\\`\\\\b"');
     assert.equal(desktopExecArgument('/tmp/app\nName=Injected'), null);
-});
-
-test('permission origins prefer the security origin supplied by Chromium', () => {
-    const details = {
-        securityOrigin: 'https://web.whatsapp.com',
-        requestingUrl: 'https://example.test/frame',
-        embeddingOrigin: 'https://example.test',
-    };
-    assert.equal(permissionRequestOrigin(details), 'https://web.whatsapp.com');
-    assert.equal(permissionCheckOrigin('https://fallback.test', details), 'https://web.whatsapp.com');
-    assert.equal(permissionCheckOrigin('https://fallback.test', {}), 'https://fallback.test');
+    assert.equal(desktopExecArgument('/tmp/100%/a%U.AppImage'), '"/tmp/100%%/a%%U.AppImage"');
 });

@@ -1,8 +1,10 @@
 'use strict';
 
-// WhatsApp blendet Calls aus, sobald Electron in den User-Agent Client Hints
-// auftaucht. Header werden im Main-Prozess bereinigt; dieser frühe Patch hält
-// navigator.userAgentData dazu konsistent, bevor Seitenskripte ausgeführt werden.
+// Modified 2026-10-22 by the UdayaSri0 fork: secure Linux foundation.
+// Original implementation by Dominik Lübben; GPL-2.0-or-later.
+
+// Optional inherited compatibility patch; no privileged APIs are exposed.
+// The sandboxed preload deliberately does not require local modules.
 
 const { contextBridge } = require('electron');
 
@@ -12,12 +14,19 @@ function readArg(name, fallback) {
     return found ? found.slice(prefix.length) : fallback;
 }
 
-const chromeMajor = readArg('kcw-chrome-major', '150');
-const chromeFull = readArg('kcw-chrome-full', `${chromeMajor}.0.0.0`);
+const chromeMajor = readArg('kcw-chrome-major', '');
+const chromeFull = readArg('kcw-chrome-full', '');
+const shouldPatch = process.isMainFrame === true
+    && globalThis.location.origin === 'https://web.whatsapp.com'
+    && readArg('kcw-browser-identity', 'native') === 'compatibility'
+    && /^\d+$/.test(chromeMajor)
+    && /^\d+\.\d+\.\d+\.\d+$/.test(chromeFull)
+    && chromeFull.split('.')[0] === chromeMajor;
 
-try {
+if (shouldPatch) try {
     contextBridge.executeInMainWorld({
         func: (major, full) => {
+            if (window !== window.top || location.origin !== 'https://web.whatsapp.com') return;
             const lowEntropyBrands = [
                 { brand: 'Chromium', version: major },
                 { brand: 'Not_A Brand', version: '24' },
