@@ -45,8 +45,16 @@ remain enabled. Mocks do not verify hardware or Chromium media behavior.
 
 The updated CI builds directory, DEB and AppImage candidates and pairs them with
 corresponding source, BUILD-COMMIT.txt and SHA256SUMS. The manual candidate workflow
-also supports RPM. Current commit/run URLs and final command results are recorded
-in the draft pull request after execution. A queued or pending workflow is not PASS.
+also supports RPM. [Candidate CI run 39932379436](https://github.com/UdayaSri0/whatsapp-electron-main/actions/runs/39932379436)
+**PASSED** for commit `211cb8ca6c11d42238ec0ccd867010e6b776508b`: clean installs,
+static checks and 62 tests on Node 22/24; directory/DEB/AppImage builds; DEB
+inspection; matching source/provenance generation; SHA-256 verification; upload.
+[Candidate bundle](https://github.com/UdayaSri0/whatsapp-electron-main/actions/runs/39932379436/artifacts/12492217477)
+expires 2026-10-30; ZIP SHA-256
+`d2a5f461eb042ceef29a8790f1b887b4d6566d179d1f443fb16d5368233d54ce`.
+This final documentation correction changes no runtime code. Updated final-head
+run/artifact URLs are recorded in [draft PR #2](https://github.com/UdayaSri0/whatsapp-electron-main/pull/2)
+after execution. A queued or pending workflow is not PASS.
 
 Native sandboxed startup/QR rendering, account linking, existing session restore,
 real messaging and calls must each be distinguished. A fresh-profile smoke test

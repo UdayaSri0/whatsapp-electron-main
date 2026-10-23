@@ -20,7 +20,7 @@ fails closed. Changing a switch reloads WhatsApp and interrupts active calls;
 reload must complete to terminate streams already granted by the page. Use the
 web client's hang-up button to stop an active call normally.
 
- Unknown,
+Unknown,
 missing or empty media types are denied. Other allowed permissions are
 notifications, fullscreen and sanitized clipboard writes. Access to location,
 USB/HID, clipboard reading, arbitrary external protocols and persistent screen

@@ -71,9 +71,9 @@ than PASS when WhatsApp does not expose a feature for the account.
 | Permission denied/recovery | Denial does not grant access; regrant via supported desktop settings and retry without relinking | NOT RUN |
 | Device hotplug | Unplug/replug headset or camera; retry or switch using WhatsApp's controls | NOT RUN |
 | Audio output | Select headset/speakers where WhatsApp/platform expose selection; remote party confirms audio | NOT RUN |
-| Screen/window sharing | Explicit chooser; remote party sees intended live content; stop ends capture | NOT RUN |
-| Screen-sharing cancel | Cancel portal/application picker; no capture indicator/track or remote content; retry works | NOT RUN |
-| Multi-monitor sharing | Select each monitor/window; correct content and resolution observed remotely | NOT RUN |
+| Screen/window sharing | Explicit chooser; remote party sees intended live content; stop ends capture | BLOCKED |
+| Screen-sharing cancel | Cancel portal/application picker; no capture indicator/track or remote content; retry works | BLOCKED |
+| Multi-monitor sharing | Select each monitor/window; correct content and resolution observed remotely | BLOCKED |
 | Network loss/recovery | Disconnect/reconnect; UI recovers without retry storms, logout or stale capture | NOT RUN |
 | Reload/quit during capture | Sharing stops; no background camera/microphone use after quit | NOT RUN |
 

@@ -82,9 +82,10 @@ the executable before enabling integration. See the
 
 ## CI and corresponding source
 
-CI performs clean installs, static checks and tests on Node 22/24, then builds and
-inspects directory/DEB output. The candidate artifact workflow additionally builds
-AppImage/RPM and generates source, provenance and checksums. Neither publishes.
+CI performs clean installs, static checks and tests on Node 22/24, then builds
+directory, DEB and AppImage output and inspects the DEB. It generates matching
+source, provenance and SHA-256 checksums. The manually dispatched candidate
+workflow additionally supports RPM. Neither publishes production releases.
 Temporary CI downloads are not permanent release assets.
 
 For any distribution candidate, build from a clean committed tree with an empty
