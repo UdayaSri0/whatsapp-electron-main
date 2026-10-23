@@ -11,7 +11,7 @@ const vm = require('node:vm');
 const sourcePath = path.resolve(__dirname, '../src/main.js');
 const APP_URL = 'https://web.whatsapp.com/';
 
-async function boot({ prefs = {}, trayFailure = false, environment = {}, deferredReady = false } = {}) {
+async function boot({ prefs = {}, trayFailure = false, environment = {}, deferredReady = false, packaged = false, shortcutFailure = false, autostartFailure = false, dialogFailure = null, clipboardFailure = false } = {}) {
     let ready = !deferredReady;
     let resolveReady;
     const readyPromise = new Promise(resolve => { resolveReady = resolve; });
@@ -20,6 +20,11 @@ async function boot({ prefs = {}, trayFailure = false, environment = {}, deferre
     const timers = new Set();
     const opened = [];
     const writes = [];
+    const dialogs = [];
+    const copied = [];
+    const warnings = [];
+    const autostartWrites = [];
+    let autostartEnabled = false;
     const session = {
         webRequest: { onBeforeSendHeaders(_filter, callback) { session.headers = callback; } },
         setUserAgent(value) { session.userAgent = value; },
@@ -91,6 +96,7 @@ async function boot({ prefs = {}, trayFailure = false, environment = {}, deferre
         userAgentFallback: 'WhatsApp/1 Electron/43 Chrome/150',
         commandLine: { appendSwitch() {} },
         setName() {}, enableSandbox() { app.sandbox = true; },
+        isPackaged: packaged, getVersion: () => '1.2.0-rc.1',
         getPath: () => '/mock-profile', requestSingleInstanceLock: () => true,
         whenReady: () => readyPromise, isReady: () => ready,
         quit() { app.quitCount = (app.quitCount || 0) + 1; },
@@ -100,11 +106,17 @@ async function boot({ prefs = {}, trayFailure = false, environment = {}, deferre
     const electron = {
         app, BrowserWindow: Window, Tray, session: { defaultSession: session },
         shell: { openExternal: async url => { opened.push(url); } },
-        Menu: { buildFromTemplate: value => value, setApplicationMenu() {} },
+        Menu: { buildFromTemplate: value => value, setApplicationMenu(value) { app.menu = value; } },
+        clipboard: { writeText(text) { if (clipboardFailure) throw new Error('Clipboard unavailable'); copied.push(text); } },
         nativeImage: { createFromPath: () => ({ resize() { return this; } }) },
         screen: { getAllDisplays: () => [{ workArea: area }], getPrimaryDisplay: () => ({ workArea: area }), getDisplayMatching: () => ({ workArea: area }) },
         desktopCapturer: { getSources: async () => [{ id: 'screen:1', name: 'Monitor' }] },
-        dialog: { showMessageBox: async () => ({ response: 1 }) },
+        dialog: { showMessageBox(...args) {
+            dialogs.push({ ...args.at(-1), parent: args.length === 2 ? args[0] : null });
+            if (dialogFailure === 'sync') throw new Error('Dialog unavailable');
+            if (dialogFailure === 'async') return Promise.reject(new Error('Dialog unavailable'));
+            return Promise.resolve({ response: 1 });
+        } },
     };
     const mockFs = {
         existsSync: () => true,
@@ -113,7 +125,7 @@ async function boot({ prefs = {}, trayFailure = false, environment = {}, deferre
         writeFileSync: (...args) => writes.push(args),
     };
     const context = {
-        URL, __dirname: path.dirname(sourcePath), console: { warn() {}, error() {}, log() {} },
+        URL, __dirname: path.dirname(sourcePath), console: { warn: (...args) => warnings.push(args), error() {}, log() {} },
         process: { env: environment, platform: 'linux', versions: { chrome: '150.0.1.2' }, exit() { throw new Error('Unexpected exit'); } },
         setTimeout(callback, delay) {
             const timer = { callback, delay, unref() {} };
@@ -130,6 +142,14 @@ async function boot({ prefs = {}, trayFailure = false, environment = {}, deferre
         const localRequire = name => {
             if (name === 'electron') return electron;
             if (name === 'node:fs') return mockFs;
+            if (name === './autostart') return {
+                getAutostartStatus: () => ({ enabled: autostartEnabled }),
+                setAutostart(options) { if (autostartFailure) throw new Error('Existing launcher preserved'); autostartWrites.push(options); autostartEnabled = options.enabled; },
+            };
+            if (name === './desktop-integration') return { installDesktopShortcut() {
+                if (shortcutFailure) throw new Error('Existing shortcut preserved');
+                return { desktopFile: '/mock-home/.local/share/applications/whatsapp.desktop' };
+            } };
             return name.startsWith('.')
                 ? loadModule(require.resolve(path.resolve(path.dirname(filename), name)))
                 : require(name);
@@ -142,7 +162,7 @@ async function boot({ prefs = {}, trayFailure = false, environment = {}, deferre
     await Promise.resolve();
     await Promise.resolve();
     return {
-        app, session, windows, timers, opened, writes,
+        app, session, windows, timers, opened, writes, dialogs, copied, autostartWrites, warnings,
         async ready() {
             ready = true;
             resolveReady();
@@ -355,4 +375,83 @@ test('restored maximized state retains normal geometry through shutdown persiste
     assert.equal(persisted.window.height, 800);
     assert.equal(persisted.window.x, 30);
     assert.equal(persisted.window.y, 40);
+});
+
+function menuItem(runtime, group, label) {
+    return runtime.app.menu.find(item => item.label === group).submenu.find(item => item.label === label);
+}
+
+test('native menus remain accessible without tray and preserve editing shortcuts', async () => {
+    const runtime = await boot({ trayFailure: true });
+    assert.equal(runtime.windows[0].options.autoHideMenuBar, false);
+    assert.equal(menuItem(runtime, 'Settings', 'Minimize to tray on close').enabled, false);
+    assert.equal(menuItem(runtime, 'Settings', 'Start automatically at login').enabled, false);
+    assert.ok(runtime.app.menu.find(item => item.label === 'Edit').submenu.some(item => item.role === 'paste'));
+    const before = runtime.windows[0].webContents.loads.length;
+    menuItem(runtime, 'File', 'Reload').click();
+    assert.equal(runtime.windows[0].webContents.loads.length, before + 1);
+    menuItem(runtime, 'Help', 'About').click();
+    assert.match(runtime.dialogs.at(-1).detail, /UdayaSri0/);
+    assert.match(runtime.dialogs.at(-1).detail, /Dominik/);
+    menuItem(runtime, 'Help', 'Copy Diagnostics').click();
+    assert.equal(runtime.copied.length, 1);
+    assert.match(runtime.copied[0], /1\.2\.0-rc\.1/);
+    assert.doesNotMatch(runtime.copied[0], /mock-profile/);
+});
+
+test('media controls persist, update live permission policy and reload active streams', async () => {
+    const runtime = await boot();
+    const contents = runtime.windows[0].webContents;
+    menuItem(runtime, 'Settings', 'Allow microphone (reload ends calls)').click({ checked: false });
+    assert.equal(JSON.parse(runtime.writes.at(-1)[1]).microphoneEnabled, false);
+    assert.equal(contents.loads.length, 2);
+    let answer;
+    runtime.session.request(contents, 'media', value => { answer = value; }, {
+        isMainFrame: true, requestingUrl: APP_URL, mediaTypes: ['audio'], mediaType: 'audio',
+    });
+    assert.equal(answer, false);
+    assert.equal(menuItem(runtime, 'Settings', 'Allow microphone (reload ends calls)').checked, false);
+    menuItem(runtime, 'Settings', 'Allow camera (reload ends calls)').click({ checked: false });
+    assert.equal(JSON.parse(runtime.writes.at(-1)[1]).cameraEnabled, false);
+});
+
+test('opt-in autostart writes only on deliberate packaged menu action', async () => {
+    const runtime = await boot({ packaged: true });
+    assert.equal(runtime.autostartWrites.length, 0);
+    assert.equal(menuItem(runtime, 'Settings', 'Start automatically at login').checked, false);
+    menuItem(runtime, 'Settings', 'Start automatically at login').click({ checked: true });
+    assert.equal(runtime.autostartWrites.length, 1);
+    assert.equal(runtime.autostartWrites[0].enabled, true);
+    assert.equal(menuItem(runtime, 'Settings', 'Start automatically at login').checked, true);
+});
+
+test('desktop integration conflicts surface as native errors without losing user files', async () => {
+    const runtime = await boot({ packaged: true, shortcutFailure: true, autostartFailure: true,
+        environment: { APPIMAGE: '/mock-home/WhatsApp.AppImage' } });
+    menuItem(runtime, 'Settings', 'Install AppImage desktop shortcut').click();
+    assert.equal(runtime.dialogs.at(-1).type, 'error');
+    assert.match(runtime.dialogs.at(-1).detail, /preserved/);
+    menuItem(runtime, 'Settings', 'Start automatically at login').click({ checked: true });
+    assert.equal(runtime.dialogs.at(-1).type, 'error');
+    assert.equal(menuItem(runtime, 'Settings', 'Start automatically at login').checked, false);
+});
+
+
+test('dialog and clipboard service failures are reported without throwing or rejected promises', async () => {
+    for (const dialogFailure of ['sync', 'async']) {
+        const runtime = await boot({ dialogFailure, clipboardFailure: true });
+        assert.doesNotThrow(() => menuItem(runtime, 'Help', 'About').click());
+        assert.doesNotThrow(() => menuItem(runtime, 'Help', 'Copy Diagnostics').click());
+        await new Promise(resolve => setImmediate(resolve));
+        assert.equal(runtime.copied.length, 0);
+        assert.ok(runtime.warnings.some(args => args[0] === '[dialog] unavailable:'));
+        assert.ok(runtime.warnings.some(args => args[0] === '[Copy Diagnostics] failed:'));
+        assert.equal(runtime.dialogs.length, 2);
+    }
+    const runtime = await boot();
+    const window = runtime.windows[0];
+    window.destroyed = true;
+    window.emit('closed');
+    assert.doesNotThrow(() => menuItem(runtime, 'Help', 'About').click());
+    assert.equal(runtime.dialogs.at(-1).parent, null);
 });

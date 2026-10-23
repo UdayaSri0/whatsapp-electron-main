@@ -1,4 +1,4 @@
-# Calling compatibility and manual acceptance
+# Calling and account acceptance — 1.2.0-rc.1
 
 ## Evidence and current status
 
@@ -7,8 +7,9 @@ announces incoming/outgoing audio and video, individual/group calls and screen
 sharing on WhatsApp Web, with gradual rollout. This confirms Web support; it
 cannot prove support in this Electron wrapper or in a particular account.
 
-No authenticated WhatsApp account, remote participant, microphone/camera device,
-or interactive Linux call validation was available during this implementation.
+No authenticated WhatsApp account, remote participant or real microphone/camera
+call validation has been completed for this candidate. A successful UI smoke test
+is not account or calling acceptance.
 All runtime rows below remain **NOT RUN**. Unit tests establish policy and
 identity isolation, not WebRTC interoperability or portal operation. Screen-sharing
 rows are currently **BLOCKED** by the pinned runtime permission boundary described
@@ -22,6 +23,14 @@ only patches the exact `https://web.whatsapp.com` main frame. No application-wid
 or session-wide user agent is changed. Requests without an attributable window
 (such as some service-worker requests) retain their original headers; validate
 this behavior with authenticated messaging and calls before a production release.
+
+## Prepare privacy settings
+
+Open Settings from the native menu even without a tray. Enable Allow microphone
+for voice and Allow camera for video. Changing either reloads the page and ends
+active calls once reload completes. Confirm denial with each switch disabled,
+then enable and retry without deleting the linked profile. Copy Diagnostics from
+Help records these settings but never certifies working hardware or calls.
 
 ## Compare ordinary identity first
 
@@ -62,9 +71,9 @@ than PASS when WhatsApp does not expose a feature for the account.
 | Permission denied/recovery | Denial does not grant access; regrant via supported desktop settings and retry without relinking | NOT RUN |
 | Device hotplug | Unplug/replug headset or camera; retry or switch using WhatsApp's controls | NOT RUN |
 | Audio output | Select headset/speakers where WhatsApp/platform expose selection; remote party confirms audio | NOT RUN |
-| Screen/window sharing | Explicit chooser; remote party sees intended live content; stop ends capture | NOT RUN |
-| Screen-sharing cancel | Cancel portal/application picker; no capture indicator/track or remote content; retry works | NOT RUN |
-| Multi-monitor sharing | Select each monitor/window; correct content and resolution observed remotely | NOT RUN |
+| Screen/window sharing | Explicit chooser; remote party sees intended live content; stop ends capture | BLOCKED |
+| Screen-sharing cancel | Cancel portal/application picker; no capture indicator/track or remote content; retry works | BLOCKED |
+| Multi-monitor sharing | Select each monitor/window; correct content and resolution observed remotely | BLOCKED |
 | Network loss/recovery | Disconnect/reconnect; UI recovers without retry storms, logout or stale capture | NOT RUN |
 | Reload/quit during capture | Sharing stops; no background camera/microphone use after quit | NOT RUN |
 

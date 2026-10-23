@@ -1,97 +1,107 @@
-# Packaging and Linux integration
+# Build, install and release
 
-Modified 2026-10-22. This fork is maintained at
-https://github.com/UdayaSri0/whatsapp-electron-main. Original wrapper author:
-Dominik Lübben, https://github.com/DomiLuebben/whatsapp-electron.
-The wrapper remains GPL-2.0-or-later; this is unofficial software, unaffiliated
-with WhatsApp or Meta.
+Owner and maintainer: UdayaSri0. Current candidate: **1.2.0-rc.1**.
+Supported build contract: Linux x86_64, Node 22.12+ within 22 or Node 24.
+Exact build dependencies remain Electron 43.7.0 and electron-builder 26.15.3.
+Use a native filesystem with symlink and Unix permission support; clone under
+your Linux home directory rather than on exFAT.
 
-## Build and validate
+## Build targets
 
-Build on a native Linux filesystem that supports symlinks and Unix permissions.
-The development checkout on exFAT rejected symlink creation (`EPERM`), so clean
-installation and package builds were moved to an identical source copy under
-`/tmp/whatsapp-foundation-build.QczR5p`. Cloning under `~/src` on ext4/btrfs is
-preferable for ongoing development. Do not change mount or system security
-settings to work around this limitation.
-
-Use Node.js 24 (recommended, `.nvmrc`) or Node.js 22.12 or newer within the 22
-series. Both are covered by CI. Odd releases 23 and 25 are EOL and are no longer
-accepted. Node.js 26 remains outside the tested build range; this is a project
-support boundary rather than proof of a specific electron-builder defect.
-See [Node.js releases](https://nodejs.org/en/about/previous-releases).
-The lock pins Electron 43.7.0 and electron-builder 26.15.3; Electron's installer
-requires Node.js >=22.12. Do not confuse build-host Node with Electron's embedded
-runtime. Review [Electron's support policy](https://www.electronjs.org/docs/latest/tutorial/electron-timelines)
-and advisories before each release. The targeted maintenance update is recorded
-in the technical audit; exact pins avoid unreviewed version drift.
-
-```
+```bash
 npm ci
 npm run check
 npm test
-npm run build:dir
-npm run build:deb
+npm run build:dir     # dist/linux-unpacked
+npm run build:deb     # Debian/Ubuntu package
+npm run build         # AppImage
+npm run build:rpm     # RPM
 ```
 
-`npm run build` produces AppImage; `build:rpm` needs `rpmbuild`; `build:linux`
-produces all three formats. Builds never publish. `dist/` is local output.
-`arch-pkg/PKGBUILD` packages the previously generated `dist/linux-unpacked`
-directory and is intended for a local `makepkg`, not as a standalone source
-recipe. Its sandbox helper retains the existing setuid packaging behavior;
-never run the app with `--no-sandbox` as an installation workaround.
+`npm run build:linux` builds AppImage, DEB and RPM. RPM packaging needs `rpmbuild`;
+install distribution build prerequisites using your normal administration process.
+Build commands specify `--publish never`. They do not create production releases.
+Do not add sandbox-disabling flags to make a failing launch appear successful.
 
-The CI workflow validates clean installation, syntax, tests on Node 22/24 and
-directory/DEB packaging on Ubuntu 24.04. The manually dispatched candidate
-workflow additionally builds AppImage/RPM, archives corresponding tracked source,
-records the commit, generates SHA-256 checksums and uploads temporary CI
-artifacts. It creates no GitHub release. Successful builds do not verify runtime
-calls, distribution dependencies or desktop behavior.
+`arch-pkg/PKGBUILD` wraps the existing directory output. Run `build:dir` first,
+then `makepkg` from `arch-pkg`; the Arch candidate version is `1.2.0rc1` because
+PKGBUILD versions cannot contain the semver hyphen. Arch packaging and setuid
+sandbox installation still require distribution acceptance testing.
 
-## Candidate and release procedure
+## Candidate installation and removal
 
-Build from a fresh, committed checkout; run tests and `npm run build:linux`, then
-`npm run release:assets`. The asset script rejects a dirty checkout and archives
-HEAD, including LICENSE and build scripts. Use a clean `dist` for every candidate
-to avoid checksumming stale binaries from an earlier build. Inspect DEB/RPM
-metadata and installation/removal, compare the recorded commit, and verify from
-`dist/` with `sha256sum --check SHA256SUMS`. Publish only after manual acceptance.
-Distribute the matching source archive and wrapper license alongside binaries;
-preserve Electron/Chromium third-party notices. The workflow does not supply a
-complete third-party source compliance determination for redistributors.
+Check the artifact's commit, version, architecture and SHA-256 before installing.
+For a DEB, use your package manager to install the local `.deb`, then open
+**WhatsApp (unofficial)**. For an RPM, use the target distribution's package manager.
+These operations may require administrative privileges; application startup and
+AppImage integration do not.
 
-Keep package.json and package-lock.json versions aligned, add release notes,
-create a versioned tag only after validation, and attach artifacts for that exact
-commit. No update service or automatic updater is configured.
+For an AppImage, put it in a permanent user-owned location, grant executable
+permission and run it. Some distributions need AppImage/FUSE support. Extraction
+with AppImage's supported `--appimage-extract-and-run` option can avoid a FUSE
+mount requirement, but does not remove Electron's sandbox requirements.
 
-## Identity and desktop acceptance
+Before upgrading, quit all application instances. Existing product name,
+executable, application ID, WM_CLASS and profile are retained. The profile is
+normally `~/.config/WhatsApp`, subject to Electron's existing XDG behavior.
+Do not remove it during upgrade/uninstall unless you deliberately want to unlink
+and delete local session data. No new updater or profile migration is introduced.
+Uninstall DEB/RPM using the package manager; remove an AppImage manually.
+Disable autostart before removing the executable.
 
-The existing name `WhatsApp`, package name, executable, app ID and WM_CLASS are
-retained to preserve installed profiles and taskbar matching. Launchers explicitly
-say unofficial. The profile remains `~/.config/WhatsApp` (or Electron's existing
-XDG location); upgrades must not delete it. AppImage launcher installation is
-user-invoked. To reverse it, remove only the generated files:
-`~/.local/share/applications/whatsapp-desktop.desktop` and
-`~/.local/share/icons/hicolor/512x512/apps/whatsapp-desktop.png`.
-Autostart is not enabled automatically. Desktop Exec quoting handles both desktop
-string and argument parsing, including literal field-code characters. Paths with
-`%` use `/usr/bin/env --` to avoid GIO interpreting the escaped executable name
-before field expansion. Paths containing `=` or control characters are rejected;
-rename the AppImage before installing its shortcut. No shell is invoked.
-See the [desktop-entry Exec specification](https://specifications.freedesktop.org/desktop-entry/latest/exec-variables.html).
+## Desktop integration
 
-Before release, record results on Ubuntu/Mint, GNOME/KDE, X11/Wayland and available
-Intel/AMD/NVIDIA hardware. Verify notifications, taskbar identity, multi-monitor
-bounds restoration, tray unavailable fallback, close/restore, start minimized,
-and session persistence across upgrade. Wayland screen sharing needs a working
-PipeWire and desktop portal backend for the session. Test portal cancellation,
-screen/window choice and multi-monitor capture with real content. A returned
-capture source does not establish working video or calls. Do not modify drivers,
-kernel options or system-wide GPU configuration for these tests.
+All integration is explicit. The native Settings menu is available without a tray.
 
-The post-update audit retained a high advisory in Undici 7.28.0, used by build
-download tooling. A targeted lock-only update selected 7.30.1 within the existing
-`@electron/get` 7.x dependency range, without adding a direct dependency. See the
-[official Undici patched-version advisory](https://github.com/nodejs/undici/security/advisories/GHSA-w293-vg96-wgc3)
-and final validation for the audit outcome. Automatic audit fixes suggesting a
-builder downgrade were deliberately not applied.
+**Start automatically at login** creates:
+`$XDG_CONFIG_HOME/autostart/whatsapp-electron.desktop`, or
+`~/.config/autostart/whatsapp-electron.desktop` when XDG_CONFIG_HOME is unset.
+It starts the packaged executable or permanent AppImage path. It follows saved
+start-minimized preferences, subject to tray fallback. Disable it from Settings
+to remove only the application's unmodified managed entry. Existing foreign,
+modified, empty and symlink entries are preserved. The checksum detects edits;
+it is not an authentication boundary against another process running as you.
+A stale `.lock` left by a process crash causes a visible error: after quitting all
+instances, inspect and remove only the matching `whatsapp-electron.desktop.lock`
+if no operation is running, then retry. Never delete another application's entry.
+
+**Install AppImage desktop shortcut** creates:
+
+- `~/.local/share/applications/whatsapp-desktop.desktop`
+- `~/.local/share/icons/hicolor/512x512/apps/whatsapp-desktop.png`
+
+Existing different launchers/icons are preserved. To reverse integration, remove
+only these generated files if they belong to this application. Move an AppImage
+before integration; an old customized path is intentionally not overwritten.
+
+Desktop Exec escaping handles string and argument parsing without a shell.
+Literal percent filenames use `/usr/bin/env --` to avoid GIO executable checking
+before field expansion. Paths with `=` or control characters are rejected; rename
+the executable before enabling integration. See the
+[desktop-entry specification](https://specifications.freedesktop.org/desktop-entry/latest/exec-variables.html).
+
+## CI and corresponding source
+
+CI performs clean installs, static checks and tests on Node 22/24, then builds
+directory, DEB and AppImage output and inspects the DEB. It generates matching
+source, provenance and SHA-256 checksums. The manually dispatched candidate
+workflow additionally supports RPM. Neither publishes production releases.
+Temporary CI downloads are not permanent release assets.
+
+For any distribution candidate, build from a clean committed tree with an empty
+`dist` and run `npm run release:assets` after the builds. The script archives HEAD,
+records it in BUILD-COMMIT.txt and hashes the binaries/source. A dirty tree is rejected.
+Verify with `cd dist && sha256sum --check SHA256SUMS`. Do not pair stale binaries
+with a new source archive. Include LICENSE, NOTICE, corresponding wrapper source
+and the bundled Electron/Chromium notices. Redistributors must review all third-party
+source/license obligations separately.
+
+## Stable release gate
+
+Before a stable version/tag or production publication, complete the
+[validation record](validation.md) and real-device [call matrix](calling-validation.md).
+Test install/upgrade/removal, linked-session preservation, notifications, tray
+visibility and window/taskbar identity on Ubuntu/Mint, GNOME/KDE and X11/Wayland.
+Cover available Intel/AMD/NVIDIA hardware without changing drivers, kernel or
+system security settings. Screen sharing remains unavailable until a safe capture
+permission path and actual remote-frame/cancellation tests pass.

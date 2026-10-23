@@ -1,105 +1,88 @@
-# Validation and delivery record
+# Release candidate validation
 
-Date: 2026-10-22. Baseline `d131725221b31d8d55cb7d45ae3a0637e9943178`.
-Feature branch: `feat/secure-linux-foundation`. Build host: Linux x86_64,
-Node 24.19.0, npm 11.16.0. Baseline suite: 5/5 passed before implementation.
+Candidate: **1.2.0-rc.1**, dated 2026-10-23. Owner/maintainer: UdayaSri0.
+Feature branch: `feat/first-linux-release-candidate`, based on foundation commit
+`0ec99b9714a95a5ac667dea53f2c0f0424f22b76`. This is a release candidate, not
+production acceptance. No merge, stable tag or production publication is implied.
 
-## Engineering and independent gates
+## Current engineering checks
 
-Independent Security, Calling, Linux Integration, Release, Testing, Core
-Engineering and Independent Review agents contributed actual audits, implementation or review.
-The primary agent coordinated integration. Separate reviewers found the incorrect
-`will-frame-navigate` callback signature and incomplete AppImage file handling;
-both were fixed and regression tested. Native desktop-entry validation also found
-a two-layer Exec escaping defect; the fix passed independent review and actual
-harmless Gio launches for spaces, quotes, backslashes, dollar signs, backticks
-and literal `%U` filenames. No real AppImage or user launcher was launched. A hypothesized mixed device/desktop media
-bypass was investigated and withdrawn after checking Chromium's validation.
+A fresh checkout was restored under `/home/rog/Projects/whatsapp-electron-main`
+because the previous removable-volume checkout is no longer mounted. This avoids
+the earlier exFAT symlink limitation. Current host: Linux x86_64, Ubuntu/GNOME,
+Wayland session, Node 24.19.0. The existing account/profile was not accessed.
 
-Current code-level coverage includes malicious/credential/alternate-port URLs,
-exact main-window permission ownership, device type checks, wrong frames,
-gesture checks, stale requests, cancelled/failed/concurrent source selection,
-preferences corruption/atomic failures, monitor bounds, tray absence, early second
-instances, startup guard ordering, retry reset/shutdown, identity opt-out,
-packaged metadata/source archives and launcher rollback.
+- Clean `npm ci --no-audit --fetch-retries=1 --fetch-timeout=30000`: **PASS**, 284
+  packages installed. Electron's binary is fetched lazily by this pinned npm package;
+  installation alone does not establish binary/runtime availability.
+- `npm test`: **62/62 PASS** after integration and native-service error fixes.
+- `npm run check`: **PASS**, JavaScript and packaging shell syntax.
+- Independent review of device policies/preferences/diagnostics and UI integration:
+  **PASS**; native dialog promise handling was improved following review.
+- Independent autostart review: **5/5 unit tests PASS**, plus actual desktop-file
+  validation and harmless Gio launches for **7/7 filenames** including spaces,
+  quotes, backslashes, dollar signs, backticks and literal percent characters.
+  Fixtures were temporary and no user autostart entry was changed.
+- First local `npm run build:dir`: **FAILED**, Electron download `ECONNRESET`.
+  An attempted explicit local electronDist also failed because no binary had yet
+  been installed. The normal retry also **FAILED** with `ETIMEDOUT`. No local
+  directory/DEB/AppImage success is claimed from these failed downloads.
+- A DEB command started during the retry was cancelled; it is not a successful
+  build. Builds must run sequentially against their shared output directory.
 
-Mocks verify application decisions. They do not establish Electron's native
-permission ordering, WebRTC behavior, capture contents, portal/tray availability
-or notification delivery. Version-specific source review identified the capture
-limitation documented in [security.md](security.md).
+New code tests cover separate device denial/recovery, combined media denial,
+malformed policy fail-closed behavior, saved privacy settings, redacted diagnostics,
+tray-free menus, packaged-only explicit autostart, preserving foreign/edited
+startup entries, concurrent creation, native integration failures, failed dialogs
+and unavailable clipboard. Existing origin/frame/navigation/lifecycle regressions
+remain enabled. Mocks do not verify hardware or Chromium media behavior.
 
-## Commands and results
+- Actual developer runtime attempt: `timeout 55s node node_modules/electron/cli.js --version`
+  reached binary download, then **TIMED OUT** (exit 124). No Electron process,
+  QR page, sandbox result or real call was verified by that attempt.
 
-- Baseline `npm test`: **5/5 PASS**.
-- Expanded `npm test`: **47/47 PASS** after final dependency and desktop escaping changes.
-- `npm run check`: **PASS** (supported Node gate, JavaScript and shell syntax).
-- `git diff --check`: **PASS** after fixing a trailing blank line.
-- Workflow YAML parsing: **PASS** (PyYAML BaseLoader); GitHub-hosted jobs also accepted the workflows.
-- Initial `npm ci`: interrupted after extended registry stalls, **not passed**.
-- Baseline `npm audit --json`: completed with exit 1, **19 advisories** (15 high,
-  4 moderate); triggered targeted same-major maintenance. See packaging notes.
-- Targeted update: exact Electron **43.7.0**, builder **26.15.3**, transitive
-  Undici **7.30.1**. Independent engine and lock review passed.
-- Final `npm audit --json`: completed exit 1, **8 moderate, 0 high/critical**.
-  The eight affected entries trace to the `sprintf-js`/`roarr`/`global-agent`
-  build-tool chain; automatic fixes suggest a builder downgrade and were not
-  applied blindly. An earlier audit retry failed with ECONNRESET; the subsequent
-  completed report is the result above.
-- The original checkout is on exFAT (`findmnt`); an isolated symlink probe failed
-  with **EPERM**. Installation attempts there were interrupted, not passed.
-  `npm run build:dir` and `npm run build:deb` there both executed and exited 127
-  (`electron-builder: not found`, incomplete installation).
-- Clean installation and build retry use the identical source copy at
-  `/tmp/whatsapp-foundation-build.QczR5p` on a native filesystem. Its clean
-  installation **failed with `EIDLETIMEOUT`** downloading a locked registry
-  dependency. Its directory/DEB commands also executed and exited 127 because
-  the installer never reached binary-link creation.
-- GitHub-hosted [run 39828510108](https://github.com/UdayaSri0/whatsapp-electron-main/actions/runs/39828510108)
-  **PASSED** for code/build commit `3fea6a471c8d075d49b34955adffd8b55fb973b7`:
-  clean `npm ci`, static checks and 46 tests on Node 22/24; directory and DEB
-  builds plus `dpkg-deb` metadata/content inspection on Ubuntu 24.04.5 with
-  Node 24.21.0/npm 11.19.0. It generated a 91,499,068-byte DEB.
-  [Download validation artifact](https://github.com/UdayaSri0/whatsapp-electron-main/actions/runs/39828510108/artifacts/12446649906)
-  (seven-day retention; ZIP SHA-256
-  `a9fbdcb7d552744dd41cb238ace7477836a849f8b38acb144d4022b7e703596a`).
-- Final desktop-path fix `91e7127` passed all 47 local tests, static checks,
-  independent review and six actual harmless Gio launcher checks. Its CI
-  [CI rerun 39829887263](https://github.com/UdayaSri0/whatsapp-electron-main/actions/runs/39829887263)
-  **PASSED**: clean installs/checks/47 tests on both Node 22/24, directory/DEB
-  builds, package inspection and upload.
-  [Updated DEB artifact](https://github.com/UdayaSri0/whatsapp-electron-main/actions/runs/39829887263/artifacts/12447993248)
-  expires 2026-10-29; ZIP SHA-256
-  `362072daf413ff136203a0f1bbd30fe76b63010919b3b3353c551198c0399111`.
-  [Corresponding tested source](https://github.com/UdayaSri0/whatsapp-electron-main/archive/91e71273c043eaa6ea60afe5a7a3c82ff13a4fb0.tar.gz).
-  The final documentation commit also removes unverified calling claims from
-  package descriptions. AppImage/RPM/Arch builds remain unverified.
+## Candidate artifacts and runtime
 
-## Required manual acceptance
+The updated CI builds directory, DEB and AppImage candidates and pairs them with
+corresponding source, BUILD-COMMIT.txt and SHA256SUMS. The manual candidate workflow
+also supports RPM. [Candidate CI run 39932379436](https://github.com/UdayaSri0/whatsapp-electron-main/actions/runs/39932379436)
+**PASSED** for commit `211cb8ca6c11d42238ec0ccd867010e6b776508b`: clean installs,
+static checks and 62 tests on Node 22/24; directory/DEB/AppImage builds; DEB
+inspection; matching source/provenance generation; SHA-256 verification; upload.
+[Candidate bundle](https://github.com/UdayaSri0/whatsapp-electron-main/actions/runs/39932379436/artifacts/12492217477)
+expires 2026-10-30; ZIP SHA-256
+`d2a5f461eb042ceef29a8790f1b887b4d6566d179d1f443fb16d5368233d54ce`.
+This final documentation correction changes no runtime code. Updated final-head
+run/artifact URLs are recorded in [draft PR #2](https://github.com/UdayaSri0/whatsapp-electron-main/pull/2)
+after execution. A queued or pending workflow is not PASS.
 
-Use the full [call/device matrix](calling-validation.md), in both browser modes,
-and the [Linux packaging checklist](packaging.md). No account, physical media,
-compositor, portal, visible tray provider, DEB/RPM installation or GPU coverage is
-claimed. The environment has no `xvfb-run` or `rpmbuild`; a live Wayland/X11 session is
-present, but this is not a distribution/device matrix. Do not run with
-`--no-sandbox` to conceal a graphical/sandbox startup failure.
+Native sandboxed startup/QR rendering, account linking, existing session restore,
+real messaging and calls must each be distinguished. A fresh-profile smoke test
+must not read a user's existing chats or claim real-device operation.
 
-Before production distribution, screen capture needs an API/runtime with safe
-modern-vs-legacy permission separation plus real X11/Wayland validation. Verify
-messaging/session restoration and service-worker notifications too; no-owner
-permission checks are intentionally denied.
+## Manual release acceptance
 
-## Ranked follow-up acceptance criteria
+| Gate | Required evidence | Current result |
+| --- | --- | --- |
+| Account/session | QR link, send/receive, attachments, upgrade preserves login | NOT RUN |
+| Voice/video | Incoming/outgoing/group calls, audible two-way audio and visible video | NOT RUN |
+| Background calls | Incoming ringing and ten-minute call while minimized/hidden | NOT RUN |
+| Privacy controls | Disabled devices denied; re-enable recovers; reload ends prior tracks | Policy tests PASS; hardware NOT RUN |
+| Notifications/tray | GNOME/KDE visibility, delivery, focus and badge behavior | NOT RUN |
+| Packages | Ubuntu/Mint install/upgrade/removal and desktop/taskbar identity | NOT RUN |
+| Compositors/GPUs | X11/Wayland, available Intel/AMD/NVIDIA | NOT RUN |
+| Screen sharing | Supported safe permission API, intended remote frames, cancellation | BLOCKED by pinned runtime |
 
-1. **Safe modern capture:** establish a supported distinguishable permission
-   path, reject legacy capture, prove wrong-frame/cancel/navigation rejection
-   and remotely verify actual screen/window contents on X11 and Wayland.
-2. **Calling and native identity:** run all incoming/outgoing/group/background
-   rows with two accounts and real devices; make native identity the default
-   only once it passes without loss of messaging or login persistence.
-3. **Linux desktop acceptance:** record Ubuntu/Mint, GNOME/KDE, Wayland/X11,
-   available Intel/AMD/NVIDIA results for tray, notifications, launcher identity,
-   multi-monitor restore and session-preserving package upgrade/uninstall.
-4. **Dependency maintenance:** review remaining advisories and version-specific
-   APIs; rerun clean install, tests and package validation with each update.
-5. **Separate enhancements:** opt-in reversible autostart, advanced settings,
-   multiple profiles and ARM64 only in separate tested contributions.
+Complete the [calling matrix](calling-validation.md) and [packaging checklist](packaging.md)
+before promoting to a stable release. Do not change drivers, kernel, AppArmor,
+Secure Boot or sandbox policy to turn a failed runtime test into a pass.
+
+## Historical foundation evidence
+
+[Foundation validation record](https://github.com/UdayaSri0/whatsapp-electron-main/blob/0ec99b9714a95a5ac667dea53f2c0f0424f22b76/docs/validation.md)
+retains the original exFAT/registry failures, dependency audit and independent
+review history. [Foundation final CI](https://github.com/UdayaSri0/whatsapp-electron-main/actions/runs/39830318537)
+passed 47 tests on Node 22/24 and directory/DEB builds. Those are historical
+results, not proof that this new candidate has built or passed runtime acceptance.
+The lockfile dependency versions are unchanged in this candidate; the prior audit
+reported eight moderate build-tool entries and no high/critical entries.

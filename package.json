@@ -1,11 +1,11 @@
 {
   "name": "whatsapp-electron",
   "productName": "WhatsApp",
-  "version": "1.1.1",
+  "version": "1.2.0-rc.1",
   "description": "Unofficial WhatsApp Web desktop wrapper for Linux",
   "author": {
-    "name": "Dominik Lübben",
-    "email": "dominikluebben@googlemail.com"
+    "name": "UdayaSri0",
+    "url": "https://github.com/UdayaSri0"
   },
   "private": true,
   "main": "src/main.js",
@@ -67,7 +67,8 @@
       "src/**/*",
       "package.json",
       "LICENSE",
-      "README.md"
+      "README.md",
+      "NOTICE"
     ],
     "linux": {
       "target": [
@@ -81,7 +82,7 @@
       "category": "Network;InstantMessaging;",
       "icon": "build/icon.png",
       "maintainer": "UdayaSri0",
-      "vendor": "UdayaSri0; original wrapper by Dominik Lübben",
+      "vendor": "UdayaSri0",
       "synopsis": "WhatsApp Web Desktop",
       "description": "Unofficial WhatsApp Web desktop wrapper with tray integration and native notifications.",
       "executableName": "whatsapp",
@@ -121,8 +122,8 @@
   },
   "contributors": [
     {
-      "name": "UdayaSri0",
-      "url": "https://github.com/UdayaSri0"
+      "name": "Dominik Lübben",
+      "url": "https://github.com/DomiLuebben/whatsapp-electron"
     }
   ]
 }

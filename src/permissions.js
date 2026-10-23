@@ -18,8 +18,19 @@ function deviceMedia(types) {
 
 // Dependencies are injected so ownership and asynchronous cancellation can be
 // tested without loading Electron or accessing a real desktop.
-function installPermissionHandlers({ session, getWindow, desktopCapturer, dialog, logger = console }) {
+function installPermissionHandlers({ session, getWindow, desktopCapturer, dialog, logger = console, getMediaPreferences = () => ({ microphoneEnabled: true, cameraEnabled: true }) }) {
     let selecting = false;
+
+    function permittedDevices(types) {
+        if (!deviceMedia(types)) return false;
+        try {
+            const preferences = getMediaPreferences();
+            return types.every(type => type === 'audio'
+                ? preferences?.microphoneEnabled === true : preferences?.cameraEnabled === true);
+        } catch {
+            return false;
+        }
+    }
 
     function owningWindow(contents) {
         try {
@@ -90,7 +101,7 @@ function installPermissionHandlers({ session, getWindow, desktopCapturer, dialog
         const reply = once(callback);
         if (!owningWindow(contents) || !trustedDetails(details)) return reply(false);
         if (BASIC_PERMISSIONS.has(permission)) return reply(true);
-        if (permission === 'media' && deviceMedia(details.mediaTypes)) return reply(true);
+        if (permission === 'media' && permittedDevices(details.mediaTypes)) return reply(true);
         // Electron 43 also labels legacy desktop capture as mediaTypes: [].
         // That path bypasses setDisplayMediaRequestHandler entirely. Deny it
         // rather than granting a screen without a frame-bound source selection.
@@ -102,7 +113,7 @@ function installPermissionHandlers({ session, getWindow, desktopCapturer, dialog
         if (BASIC_PERMISSIONS.has(permission)) return true;
         // Unknown and display capture permissions are never pre-granted. The
         // pinned runtime cannot separate legacy capture from a device request.
-        return permission === 'media' && MEDIA_TYPES.has(details.mediaType);
+        return permission === 'media' && permittedDevices([details.mediaType]);
     });
 
     session.setDisplayMediaRequestHandler(async (request, callback) => {
