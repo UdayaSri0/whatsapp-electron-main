@@ -1,8 +1,8 @@
 # Fork packaging maintained by UdayaSri0: https://github.com/UdayaSri0
-# Original author: Dominik Lübben <dominikluebben@googlemail.com>
+# Original author: Dominik Lübben; see NOTICE for upstream credits.
 # Modified 2026-10-22: fork metadata and wrapper license installation.
 pkgname=whatsapp-electron
-pkgver=1.1.1
+pkgver=1.2.0rc1
 pkgrel=1
 pkgdesc="Unofficial Electron wrapper for WhatsApp Web with native desktop integration"
 arch=('x86_64')
@@ -19,7 +19,6 @@ depends=(
 )
 optdepends=(
     'libayatana-appindicator: tray icon on GNOME/KDE'
-    'pipewire: screen sharing during calls'
 )
 provides=('whatsapp')
 conflicts=('whatsapp-nativefier' 'whatsapp-for-linux' 'whatsapp')
@@ -62,7 +61,9 @@ package() {
     install -Dm644 "${startdir}/../src/icon.png" \
         "${pkgdir}/usr/share/icons/hicolor/512x512/apps/whatsapp-electron.png"
 
-    # Preserve the wrapper license and Electron's bundled license.
+    # Preserve the wrapper license, attribution and Electron's bundled license.
+    install -Dm644 "${startdir}/../NOTICE" \
+        "${pkgdir}/usr/share/licenses/${pkgname}/NOTICE"
     install -Dm644 "${startdir}/../LICENSE" \
         "${pkgdir}/usr/share/licenses/${pkgname}/LICENSE"
     install -Dm644 "${_src}/LICENSE.electron.txt" \

@@ -1,0 +1,18 @@
+WhatsApp Electron for Linux
+
+Project owner and fork maintainer: UdayaSri0
+https://github.com/UdayaSri0/whatsapp-electron-main
+
+This project contains code derived from whatsapp-electron by Dominik Lübben:
+https://github.com/DomiLuebben/whatsapp-electron
+Original authorship and copyright notices are retained. Modifications by this
+fork are identified in the source and changelog. Fork maintenance and distribution
+do not transfer ownership of other contributors' original work.
+
+Wrapper source is licensed under GNU GPL version 2 or, at your option, any later
+version. See LICENSE. Distributed candidates must retain this notice and the
+license and provide corresponding source as required by that license.
+
+Electron, Chromium and other dependencies retain their respective licenses and
+notices. WhatsApp Web, WhatsApp and its artwork belong to their respective owners.
+This is unofficial software, not affiliated with or endorsed by WhatsApp or Meta.

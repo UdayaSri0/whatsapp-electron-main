@@ -24,6 +24,8 @@ function validatedPrefs(value) {
         // where a successful Tray constructor does not mean a visible tray provider.
         minimizeToTray: typeof loaded.minimizeToTray === 'boolean' ? loaded.minimizeToTray : false,
         startMinimized: typeof loaded.startMinimized === 'boolean' ? loaded.startMinimized : false,
+        microphoneEnabled: typeof loaded.microphoneEnabled === 'boolean' ? loaded.microphoneEnabled : true,
+        cameraEnabled: typeof loaded.cameraEnabled === 'boolean' ? loaded.cameraEnabled : true,
     };
 }
 

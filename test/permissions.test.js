@@ -15,7 +15,7 @@ function deferred() {
     return { promise, resolve, reject };
 }
 
-function harness() {
+function harness(getMediaPreferences) {
     const frame = { url: `${ORIGIN}/` };
     frame.top = frame;
     const contents = Object.assign(new EventEmitter(), {
@@ -42,6 +42,7 @@ function harness() {
         getWindow: () => window,
         desktopCapturer,
         dialog,
+        getMediaPreferences,
         logger: { warn() { calls.warnings++; } },
     });
     const request = { frame, securityOrigin: ORIGIN, userGesture: true, videoRequested: true, audioRequested: true };
@@ -221,4 +222,33 @@ test('throwing callback and failed native dialog do not cause a second callback'
     const answers = [];
     await h.handlers.display(h.request, answer => answers.push(answer));
     assert.deepEqual(answers, [null]);
+});
+
+
+test('device privacy preferences apply independently to requests and checks without restart', () => {
+    const preferences = { microphoneEnabled: false, cameraEnabled: true };
+    const h = harness(() => preferences);
+    const granted = type => h.permission('media', { ...details, mediaTypes: [type] });
+    const checked = type => h.handlers.check(h.contents, 'media', ORIGIN, { ...details, mediaType: type });
+    assert.equal(granted('audio'), false);
+    assert.equal(checked('audio'), false);
+    assert.equal(granted('video'), true);
+    assert.equal(checked('video'), true);
+    assert.equal(h.permission('media', { ...details, mediaTypes: ['audio', 'video'] }), false);
+    preferences.microphoneEnabled = true;
+    preferences.cameraEnabled = false;
+    assert.equal(granted('audio'), true);
+    assert.equal(checked('audio'), true);
+    assert.equal(granted('video'), false);
+    assert.equal(checked('video'), false);
+    assert.equal(h.permission('notifications'), true);
+});
+
+test('unreadable or malformed device privacy preferences fail closed', () => {
+    for (const read of [() => null, () => ({}), () => ({ microphoneEnabled: 'yes', cameraEnabled: 1 }),
+        () => { throw new Error('preferences unavailable'); }]) {
+        const h = harness(read);
+        assert.equal(h.permission('media', { ...details, mediaTypes: ['audio', 'video'] }), false);
+        assert.equal(h.handlers.check(h.contents, 'media', ORIGIN, { ...details, mediaType: 'audio' }), false);
+    }
 });

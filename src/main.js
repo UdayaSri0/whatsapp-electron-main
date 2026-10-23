@@ -5,6 +5,7 @@
 
 const {
     app,
+    clipboard,
     BrowserWindow,
     desktopCapturer,
     dialog,
@@ -23,22 +24,23 @@ const {
     isAllowedNavigation,
 } = require('./security');
 const { installDesktopShortcut } = require('./desktop-integration');
+const { diagnosticText } = require('./diagnostics');
+const { getAutostartStatus, setAutostart } = require('./autostart');
 const { validatedPrefs, writePreferences, restoredWindowBounds } = require('./preferences');
 const { installPermissionHandlers } = require('./permissions');
 const { browserIdentity, compatibilityEnabled, rewriteCompatibilityHeaders } = require('./compatibility');
 const identity = compatibilityEnabled() ? browserIdentity(process.versions.chrome) : null;
 
 // ── App identity ─────────────────────────────────────────────────────
-// Setzt app.getName() / WM_CLASS / userData-Dirname. Muss zur
-// StartupWMClass im .desktop passen, sonst hängt das Icon nicht am Fenster.
+// Keep the established name, WM_CLASS and profile directory aligned with
+// the installed desktop entry so existing sessions and window grouping survive.
 app.setName('WhatsApp');
 app.enableSandbox();
 
-// Electron >= 38 wählt Wayland automatisch. Zusätzliche Ozone-Feature-Flags
-// würden inzwischen nur Chromiums native Erkennung überschreiben.
+// Modern Electron selects Wayland automatically; leave native Ozone detection intact.
 if (process.env.WAYLAND_DISPLAY || process.env.XDG_SESSION_TYPE === 'wayland') {
-    // Chromium 150 unterstützt seinen Vulkan-Compositor noch nicht mit Ozone
-    // Wayland. Ganesh/OpenGL und Video-Decoding bleiben hardwarebeschleunigt.
+    // Preserve the existing Wayland Vulkan compatibility workaround pending
+    // hardware validation. OpenGL and video decoding remain accelerated.
     app.commandLine.appendSwitch('use-vulkan', 'disabled');
     app.commandLine.appendSwitch('disable-features', 'Vulkan,VulkanFromANGLE,DefaultANGLEVulkan');
 }
@@ -109,13 +111,15 @@ const store = {
 function ensureDesktopIntegration() {
     if (process.platform !== 'linux' || !process.env.APPIMAGE) return;
     try {
-        installDesktopShortcut({
+        const result = installDesktopShortcut({
             appImagePath: process.env.APPIMAGE,
             homeDir: os.homedir(),
             iconPath: ICON_PATH,
         });
+        showDialog({ type: 'info', title: 'Desktop shortcut',
+            message: 'Desktop shortcut installed', detail: result.desktopFile });
     } catch (error) {
-        console.warn('[desktop-integration] failed:', error?.message || error);
+        integrationError('Desktop shortcut', error);
     }
 }
 
@@ -176,6 +180,7 @@ function configurePermissions() {
         desktopCapturer,
         dialog,
         logger: console,
+        getMediaPreferences: () => ({ microphoneEnabled: store.get('microphoneEnabled'), cameraEnabled: store.get('cameraEnabled') }),
     });
 }
 
@@ -192,7 +197,7 @@ function createWindow({ forceShow = false } = {}) {
         title: 'WhatsApp',
         backgroundColor: '#111b21',
         icon: ICON_PATH,
-        autoHideMenuBar: true,
+        autoHideMenuBar: false,
         show: false,
         webPreferences: {
             preload: path.join(__dirname, 'preload.js'),
@@ -201,14 +206,14 @@ function createWindow({ forceShow = false } = {}) {
             sandbox: true,
             webSecurity: true,
             spellcheck: true,
-            // Calls leiden, wenn Chromium den Renderer im Hintergrund drosselt.
+            // Keep the renderer active for incoming calls while the window is hidden.
             backgroundThrottling: false,
             additionalArguments: identity?.additionalArguments || [],
         },
     });
 
     if (savedBounds.maximized) mainWindow.maximize();
-    mainWindow.setMenuBarVisibility(false);
+    mainWindow.setMenuBarVisibility(true);
 
     const createdWindow = mainWindow;
     const revealWindow = () => {
@@ -222,7 +227,7 @@ function createWindow({ forceShow = false } = {}) {
 
     if (identity) mainWindow.webContents.setUserAgent(identity.userAgent);
 
-    // ── Bounds persistieren ─────────────────────────────────────
+    // ── Persist window bounds ─────────────────────────────────────
     const saveBounds = () => {
         if (!mainWindow) return;
         if (!mainWindow.isMaximized()) {
@@ -237,7 +242,7 @@ function createWindow({ forceShow = false } = {}) {
     mainWindow.on('maximize', () => store.set('window.maximized', true));
     mainWindow.on('unmaximize', () => store.set('window.maximized', false));
 
-    // ── Schließen → Tray ─────────────────────────────────────────
+    // ── Close to tray ─────────────────────────────────────────
     mainWindow.on('close', (e) => {
         if (!isQuitting && tray && !tray.isDestroyed() && store.get('minimizeToTray')) {
             e.preventDefault();
@@ -268,9 +273,7 @@ function createWindow({ forceShow = false } = {}) {
         scheduleLoadRetry();
     });
 
-    // ── Unread-Count aus dem Tab-Title ziehen ─────────────────────
-    // WhatsApp Web setzt den Title z.B. auf "(3) WhatsApp" wenn neue
-    // Nachrichten da sind. Daraus updaten wir Tray-Tooltip + Badge.
+    // Derive unread indicators from WhatsApp Web titles such as "(3) WhatsApp".
     mainWindow.webContents.on('page-title-updated', (_e, title) => {
         const m = /^\((\d+)\)/.exec(title);
         const next = m ? Math.min(Number(m[1]), 9999) : 0;
@@ -280,7 +283,7 @@ function createWindow({ forceShow = false } = {}) {
         }
     });
 
-    // ── Externe Links → System-Browser ────────────────────────────
+    // ── External links → system browser ────────────────────────────
     mainWindow.webContents.setWindowOpenHandler(({ url }) => {
         safeOpenExternal(url);
         return { action: 'deny' };
@@ -306,6 +309,103 @@ function createWindow({ forceShow = false } = {}) {
     loadWhatsApp({ resetBackoff: true });
 }
 
+// Native controls remain accessible even when the desktop has no tray provider.
+function showDialog(options) {
+    try {
+        const result = mainWindow && !mainWindow.isDestroyed()
+            ? dialog.showMessageBox(mainWindow, options) : dialog.showMessageBox(options);
+        Promise.resolve(result).catch(error => console.warn('[dialog] unavailable:', error?.message || error));
+    } catch (error) {
+        console.warn('[dialog] unavailable:', error?.message || error);
+    }
+}
+
+function integrationError(title, error) {
+    console.warn(`[${title}] failed:`, error?.message || error);
+    showDialog({ type: 'error', title,
+        message: `${title} failed`, detail: error?.message || String(error) });
+}
+
+function autostartOptions() {
+    return { appImagePath: process.env.APPIMAGE, executablePath: process.execPath, homeDir: os.homedir(), configDir: process.env.XDG_CONFIG_HOME };
+}
+
+function togglePreference(key, value) {
+    store.set(key, value);
+    flushPrefs();
+    if (key === 'microphoneEnabled' || key === 'cameraEnabled') loadWhatsApp({ resetBackoff: true });
+    refreshMenus();
+}
+
+function settingsMenuItems() {
+    const hasTray = Boolean(tray && !tray.isDestroyed());
+    let autostartEnabled = false;
+    const canAutostart = process.platform === 'linux' && app.isPackaged;
+    if (canAutostart) {
+        try { autostartEnabled = getAutostartStatus(autostartOptions()).enabled; }
+        catch (error) { console.warn('[autostart] status unavailable:', error?.message || error); }
+    }
+    return [
+        { label: 'Minimize to tray on close', type: 'checkbox', enabled: hasTray,
+            checked: store.get('minimizeToTray'), click: item => togglePreference('minimizeToTray', item.checked) },
+        { label: 'Start minimized (requires tray)', type: 'checkbox', enabled: hasTray,
+            checked: store.get('startMinimized'), click: item => togglePreference('startMinimized', item.checked) },
+        { type: 'separator' },
+        { label: 'Allow microphone (reload ends calls)', type: 'checkbox', checked: store.get('microphoneEnabled'),
+            click: item => togglePreference('microphoneEnabled', item.checked) },
+        { label: 'Allow camera (reload ends calls)', type: 'checkbox', checked: store.get('cameraEnabled'),
+            click: item => togglePreference('cameraEnabled', item.checked) },
+        { type: 'separator' },
+        { label: 'Start automatically at login', type: 'checkbox', enabled: Boolean(canAutostart), checked: autostartEnabled,
+            click: item => {
+                try { setAutostart({ ...autostartOptions(), enabled: item.checked }); }
+                catch (error) { integrationError('Autostart', error); }
+                refreshMenus();
+            } },
+        { label: 'Install AppImage desktop shortcut', visible: process.platform === 'linux' && Boolean(process.env.APPIMAGE),
+            click: ensureDesktopIntegration },
+    ];
+}
+
+function quitApplication() { isQuitting = true; app.quit(); }
+
+function trayMenuItems() {
+    return [{ label: 'Open', click: showWindow }, { label: 'Reload', click: () => loadWhatsApp({ resetBackoff: true }) },
+        { type: 'separator' }, ...settingsMenuItems(), { type: 'separator' }, { label: 'Quit', click: quitApplication }];
+}
+
+function refreshMenus() {
+    Menu.setApplicationMenu(Menu.buildFromTemplate([
+        { label: 'File', submenu: [
+            { label: 'Open', accelerator: 'CommandOrControl+O', click: showWindow },
+            { label: 'Reload', accelerator: 'CommandOrControl+R', click: () => loadWhatsApp({ resetBackoff: true }) },
+            { type: 'separator' }, { label: 'Quit', accelerator: 'CommandOrControl+Q', click: quitApplication },
+        ] },
+        { label: 'Edit', submenu: [{ role: 'undo' }, { role: 'redo' }, { type: 'separator' },
+            { role: 'cut' }, { role: 'copy' }, { role: 'paste' }, { role: 'selectAll' }] },
+        { label: 'View', submenu: [{ role: 'resetZoom' }, { role: 'zoomIn' }, { role: 'zoomOut' },
+            { type: 'separator' }, { role: 'togglefullscreen' }] },
+        { label: 'Settings', submenu: settingsMenuItems() },
+        { label: 'Help', submenu: [
+            { label: 'Copy Diagnostics', click: () => {
+                try { clipboard.writeText(diagnosticText({
+                version: app.getVersion(), electron: process.versions.electron, chrome: process.versions.chrome,
+                node: process.versions.node, platform: process.platform, arch: process.arch,
+                sessionType: process.env.XDG_SESSION_TYPE, desktop: process.env.XDG_CURRENT_DESKTOP,
+                identityMode: identity ? 'compatibility' : 'native', trayAvailable: Boolean(tray && !tray.isDestroyed()),
+                microphoneEnabled: store.get('microphoneEnabled'), cameraEnabled: store.get('cameraEnabled'), screenSharing: 'blocked',
+                })); }
+                catch (error) { integrationError('Copy Diagnostics', error); }
+            } },
+            { label: 'About', click: () => showDialog({
+                type: 'info', title: 'About WhatsApp for Linux', message: `WhatsApp for Linux ${app.getVersion()}`,
+                detail: 'Unofficial WhatsApp Web desktop application. Maintained by UdayaSri0.\nBased on the original work of Dominik Lübben. GPL-2.0-or-later.\nNot affiliated with or endorsed by WhatsApp or Meta.',
+            }) },
+        ] },
+    ]));
+    if (tray && !tray.isDestroyed()) tray.setContextMenu(Menu.buildFromTemplate(trayMenuItems()));
+}
+
 // ── Tray ────────────────────────────────────────────────────────────
 function createTray() {
     if (process.env.WHATSAPP_DISABLE_TRAY === '1') return;
@@ -314,28 +414,7 @@ function createTray() {
         tray = new Tray(trayIcon);
         tray.setToolTip('WhatsApp');
 
-        const menu = Menu.buildFromTemplate([
-            { label: 'Open', click: () => showWindow() },
-            { type: 'separator' },
-            {
-                label: 'Minimize to tray on close',
-                type: 'checkbox',
-                checked: store.get('minimizeToTray'),
-                click: (item) => store.set('minimizeToTray', item.checked),
-            },
-            {
-                label: 'Start minimized (requires tray)',
-                type: 'checkbox',
-                checked: store.get('startMinimized'),
-                click: (item) => store.set('startMinimized', item.checked),
-            },
-            { type: 'separator' },
-            { label: 'Install AppImage desktop shortcut', visible: Boolean(process.env.APPIMAGE), click: ensureDesktopIntegration },
-            { label: 'Reload', click: () => loadWhatsApp({ resetBackoff: true }) },
-            { type: 'separator' },
-            { label: 'Quit', click: () => { isQuitting = true; app.quit(); } },
-        ]);
-        tray.setContextMenu(menu);
+        tray.setContextMenu(Menu.buildFromTemplate(trayMenuItems()));
         tray.on('click', () => toggleWindow());
     } catch (error) {
         try { tray?.destroy(); } catch { /* tray already unavailable */ }
@@ -364,8 +443,7 @@ function updateBadge() {
     if (tray && !tray.isDestroyed()) {
         tray.setToolTip(unreadCount > 0 ? `WhatsApp · ${unreadCount} unread` : 'WhatsApp');
     }
-    // Unity/KDE Badge an der Taskbar — auf GNOME ohne Extension wirkungslos,
-    // schadet aber nichts.
+    // Desktop badge support varies by desktop environment.
     try { app.setBadgeCount(unreadCount); } catch { /* not supported on this DE */ }
 }
 
@@ -382,6 +460,7 @@ app.whenReady().then(() => {
     configurePermissions();
     createTray();
     createWindow({ forceShow: pendingShow });
+    refreshMenus();
 
     app.on('activate', () => {
         if (BrowserWindow.getAllWindows().length === 0) createWindow({ forceShow: true });
@@ -393,7 +472,7 @@ app.whenReady().then(() => {
 });
 
 app.on('window-all-closed', () => {
-    // Auf Linux/Windows in den Tray bleiben; auf macOS Standard-Verhalten.
+    // Preserve background operation only when a usable tray exists.
     if (process.platform === 'darwin') return;
     if (!tray || tray.isDestroyed() || !store.get('minimizeToTray')) app.quit();
 });

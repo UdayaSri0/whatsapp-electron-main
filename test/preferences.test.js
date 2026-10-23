@@ -59,3 +59,16 @@ test('failed atomic replacement cleans temporary files and preserves the destina
     assert.deepEqual(fs.readdirSync(dir), ['whatsapp-prefs.json']);
     assert.equal(fs.readFileSync(path.join(filename, 'keep'), 'utf8'), 'existing content');
 });
+
+
+test('device privacy preferences preserve explicit denials and migrate older profiles', t => {
+    assert.equal(validatedPrefs().microphoneEnabled, true);
+    assert.equal(validatedPrefs({ cameraEnabled: 'no' }).cameraEnabled, true);
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'whatsapp-private-devices-'));
+    t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+    const filename = path.join(dir, 'prefs.json');
+    writePreferences(filename, { microphoneEnabled: false, cameraEnabled: false });
+    const saved = validatedPrefs(JSON.parse(fs.readFileSync(filename, 'utf8')));
+    assert.equal(saved.microphoneEnabled, false);
+    assert.equal(saved.cameraEnabled, false);
+});

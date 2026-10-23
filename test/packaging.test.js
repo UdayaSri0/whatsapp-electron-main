@@ -16,13 +16,18 @@ test('packaging preserves profile identity and upstream authorship', () => {
     assert.equal(pkg.productName, 'WhatsApp');
     assert.equal(pkg.build.appId, 'com.dluebben.whatsapp-desktop');
     assert.equal(pkg.build.linux.executableName, 'whatsapp');
-    assert.equal(pkg.author.name, 'Dominik Lübben');
+    assert.equal(pkg.author.name, 'UdayaSri0');
+    assert.ok(pkg.contributors.some(person => person.name === 'Dominik Lübben'));
+    assert.equal(pkg.build.linux.vendor, 'UdayaSri0');
+    assert.equal(pkg.author.email, undefined);
     assert.equal(pkg.repository.url, 'git+https://github.com/UdayaSri0/whatsapp-electron-main.git');
 });
 
 test('all wrapper modules and GPL license are included in binary packages', () => {
     assert.ok(pkg.build.files.includes('src/**/*'));
     assert.ok(pkg.build.files.includes('LICENSE'));
+    assert.ok(pkg.build.files.includes('NOTICE'));
+    assert.match(fs.readFileSync('NOTICE', 'utf8'), /Dominik Lübben/);
     assert.equal(pkg.license, 'GPL-2.0-or-later');
     assert.ok(fs.readFileSync('LICENSE', 'utf8').includes('GNU GENERAL PUBLIC LICENSE'));
 });
