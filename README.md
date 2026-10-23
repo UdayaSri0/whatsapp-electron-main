@@ -26,6 +26,9 @@ from legacy capture. Installing PipeWire alone does not resolve that limitation.
 
 ## Get the candidate
 
+Official releases are listed on the project's [GitHub Releases page](https://github.com/UdayaSri0/whatsapp-electron-main/releases).
+Report reproducible problems through the [issue tracker](https://github.com/UdayaSri0/whatsapp-electron-main/issues).
+
 Use an artifact linked from this fork's reviewed pull request or build the exact
 candidate commit yourself. Do not mistake an upstream download or an old CI artifact
 for this candidate. CI artifacts expire; no stable download is promised yet.
@@ -93,7 +96,7 @@ and reversible removal instructions.
 - **Startup/shortcut conflict:** the application displays an error and preserves
   your existing file. Inspect it yourself before replacing or deleting it.
 - **Report a bug:** use **Help → Copy Diagnostics**, describe the reproduction and
-  submit it to [this project's issues](https://github.com/UdayaSri0/whatsapp-electron-main/issues).
+  submit it through the [bug report template](https://github.com/UdayaSri0/whatsapp-electron-main/issues/new?template=bug_report.yml).
   Diagnostics contain selected runtime/settings values, not chats, credentials or
   profile paths. Check any additional logs before sharing them.
 
@@ -109,8 +112,9 @@ ext4/btrfs. Node 22.12+ within the 22 series is also supported. npm installation
 requires symlinks; an exFAT checkout is unsuitable.
 
 ```bash
-git clone --branch feat/first-linux-release-candidate https://github.com/UdayaSri0/whatsapp-electron-main.git
+git clone https://github.com/UdayaSri0/whatsapp-electron-main.git
 cd whatsapp-electron-main
+git checkout v1.2.0-rc.1  # exact published candidate, when available
 npm ci
 npm run check
 npm test
@@ -120,6 +124,10 @@ npm start
 Build commands and release gates are in [packaging](docs/packaging.md).
 Development builds deliberately disable autostart so they do not create a login
 entry for the Electron development runner.
+
+Do not attach QR codes, chats, contacts, media, cookies, access tokens or full
+profiles to issue reports. Calls and screen sharing are not certified by this
+release; screen sharing is intentionally blocked.
 
 ## Project records and licensing
 
