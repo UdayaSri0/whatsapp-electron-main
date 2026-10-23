@@ -1,6 +1,21 @@
 # Changelog
 
-## Unreleased — secure Linux foundation (based on 1.1.1)
+## 1.2.0-rc.1 — first fork candidate (2026-10-23)
+
+- Add visible native application menus, editing shortcuts, zoom/fullscreen,
+  About and privacy-conscious Copy Diagnostics, including tray-free desktops.
+- Add separate saved microphone/camera controls; changing them reloads WhatsApp.
+- Add explicit reversible packaged Linux autostart with XDG support and
+  preservation of foreign or edited entries.
+- Surface desktop integration and clipboard failures; handle native dialog
+  rejection safely during teardown.
+- Identify UdayaSri0 as project owner/maintainer in package metadata; retain
+  original authorship and licensing in NOTICE, contributors and source notices.
+- Rewrite installation, usage, troubleshooting and developer documentation.
+- This is a candidate, not a stable calling release. Real account/device/call,
+  installation and Linux desktop acceptance remain required; screen sharing is blocked.
+
+### Included secure foundation (based on 1.1.1)
 
 - Bind permission requests/checks to the live main-window Web origin and restrict
   media to named camera/microphone types. Deny ambiguous desktop media requests.

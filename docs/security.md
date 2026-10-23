@@ -1,4 +1,7 @@
-# Security boundaries and capture limitation
+# Security policy — 1.2.0-rc.1
+
+Project owner and maintainer: UdayaSri0. Report reproducible problems to this
+fork's issue tracker; never include credentials, chats or raw profile data.
 
 The application trusts the live main window at exactly
 `https://web.whatsapp.com`, including its default HTTPS port. It does not trust
@@ -8,7 +11,16 @@ security and embedding origins when Electron supplies them. Requests without a
 document owner, including service-worker and some notification checks, fail
 closed; background web notifications therefore need desktop validation.
 
-Explicit audio/video device requests may access microphone/camera. Unknown,
+Explicit audio/video device requests may access microphone/camera only when
+the matching **Settings → Allow microphone/camera** switch is enabled. Denying
+one device also denies a combined request for both devices. Switches default to
+the inherited enabled behavior for existing profiles, are saved privately, and
+are consulted on both checks and requests. A missing/throwing policy reader
+fails closed. Changing a switch reloads WhatsApp and interrupts active calls;
+reload must complete to terminate streams already granted by the page. Use the
+web client's hang-up button to stop an active call normally.
+
+ Unknown,
 missing or empty media types are denied. Other allowed permissions are
 notifications, fullscreen and sanitized clipboard writes. Access to location,
 USB/HID, clipboard reading, arbitrary external protocols and persistent screen
@@ -79,3 +91,18 @@ Remote navigation is constrained to the Web client; external links use an
 explicit HTTP(S)/mail/telephone allowlist. External programs remain an operating
 system trust boundary. The app cannot protect against compromised local user
 accounts or compromised trusted WhatsApp service code.
+
+
+## Native controls and startup
+
+Settings, autostart, diagnostics and integration operate in Electron's main
+process. No new IPC bridge or privileged API is exposed to remote content.
+Autostart writes occur only on a deliberate packaged Settings action. Existing
+foreign or modified entries are preserved. Its checksum is an edit detector,
+not authentication against another process sharing the user's account.
+
+Copy Diagnostics exports selected version/platform/setting values using the
+native clipboard. It does not read chats, credentials, profile paths, complete
+environment variables or renderer logs. Desktop/session fields are allowlisted.
+Review any manually supplied logs before sharing. This app adds no telemetry,
+message automation, credential extraction or automatic update mechanism.

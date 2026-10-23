@@ -1,4 +1,9 @@
-# Foundation audit — 2026-10-22
+# Historical foundation audit — 2026-10-22
+
+This records the inherited 1.1.1 baseline and first foundation contribution. It
+is retained as engineering history, not the current feature or build status.
+For release candidate 1.2.0-rc.1, see [validation](validation.md),
+[packaging](packaging.md) and the [changelog](../CHANGELOG.md).
 
 Baseline: `d131725221b31d8d55cb7d45ae3a0637e9943178`, local and remote default
 branch `main`; clean initial tree; version 1.1.1. Reviewed all three source
