@@ -1,6 +1,7 @@
+# Modified 2026-10-22 by UdayaSri0: identify unofficial fork.
 [Desktop Entry]
-Name=WhatsApp
-Comment=WhatsApp Web Desktop
+Name=WhatsApp (unofficial)
+Comment=Unofficial WhatsApp Web desktop wrapper
 Exec=whatsapp %U
 Icon=whatsapp-electron
 Terminal=false

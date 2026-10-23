@@ -1,10 +1,12 @@
-# Maintainer: Dominik Lübben <dominikluebben@googlemail.com>
+# Fork packaging maintained by UdayaSri0: https://github.com/UdayaSri0
+# Original author: Dominik Lübben <dominikluebben@googlemail.com>
+# Modified 2026-10-22: fork metadata and wrapper license installation.
 pkgname=whatsapp-electron
 pkgver=1.1.1
 pkgrel=1
-pkgdesc="Electron wrapper for WhatsApp Web with tray, notifications, and calls"
+pkgdesc="Unofficial Electron wrapper for WhatsApp Web with native desktop integration"
 arch=('x86_64')
-url="https://github.com/DomiLuebben/whatsapp-electron"
+url="https://github.com/UdayaSri0/whatsapp-electron-main"
 license=('GPL-2.0-or-later')
 # linux-unpacked contains the bundled Electron binaries. These are the system
 # libraries against which the bundled Chromium build links dynamically.
@@ -28,7 +30,10 @@ source=(
     'whatsapp-electron.desktop'
     'whatsapp.sh'
 )
-sha256sums=('SKIP' 'SKIP')
+sha256sums=(
+    'eda023496c5920ee2ad17c413111648cb4787765349c4295ae90a0bebcac6bea'
+    '80c7347eb87ee04d69be2fae5e6524b3789e66074e9fc0e74be5964374562f6a'
+)
 
 package() {
     local _src="${startdir}/../dist/linux-unpacked"
@@ -57,7 +62,9 @@ package() {
     install -Dm644 "${startdir}/../src/icon.png" \
         "${pkgdir}/usr/share/icons/hicolor/512x512/apps/whatsapp-electron.png"
 
-    # Preserve Electron's bundled license.
+    # Preserve the wrapper license and Electron's bundled license.
+    install -Dm644 "${startdir}/../LICENSE" \
+        "${pkgdir}/usr/share/licenses/${pkgname}/LICENSE"
     install -Dm644 "${_src}/LICENSE.electron.txt" \
         "${pkgdir}/usr/share/licenses/${pkgname}/LICENSE.electron.txt"
 }

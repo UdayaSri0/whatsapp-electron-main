@@ -2,7 +2,7 @@
   "name": "whatsapp-electron",
   "productName": "WhatsApp",
   "version": "1.1.1",
-  "description": "Unofficial WhatsApp Web desktop wrapper for Linux with voice and video calls",
+  "description": "Unofficial WhatsApp Web desktop wrapper for Linux",
   "author": {
     "name": "Dominik Lübben",
     "email": "dominikluebben@googlemail.com"
@@ -10,16 +10,16 @@
   "private": true,
   "main": "src/main.js",
   "license": "GPL-2.0-or-later",
-  "homepage": "https://github.com/DomiLuebben/whatsapp-electron#readme",
+  "homepage": "https://github.com/UdayaSri0/whatsapp-electron-main#readme",
   "bugs": {
-    "url": "https://github.com/DomiLuebben/whatsapp-electron/issues"
+    "url": "https://github.com/UdayaSri0/whatsapp-electron-main/issues"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/DomiLuebben/whatsapp-electron.git"
+    "url": "git+https://github.com/UdayaSri0/whatsapp-electron-main.git"
   },
   "engines": {
-    "node": ">=22.12 <26"
+    "node": ">=22.12 <23 || >=24 <25"
   },
   "scripts": {
     "check:node": "node scripts/check-node.js",
@@ -35,11 +35,13 @@
     "prebuild:linux": "npm run check:node",
     "build:linux": "electron-builder --linux AppImage deb rpm --x64 --publish never",
     "prebuild:dir": "npm run check:node",
-    "build:dir": "electron-builder --linux dir --publish never"
+    "build:dir": "electron-builder --linux dir --publish never",
+    "check": "npm run check:node && node scripts/check.js",
+    "release:assets": "node scripts/release-assets.js"
   },
   "devDependencies": {
-    "electron": "^43.1.1",
-    "electron-builder": "^26.11.1"
+    "electron": "43.7.0",
+    "electron-builder": "26.15.3"
   },
   "build": {
     "appId": "com.dluebben.whatsapp-desktop",
@@ -63,7 +65,9 @@
     },
     "files": [
       "src/**/*",
-      "package.json"
+      "package.json",
+      "LICENSE",
+      "README.md"
     ],
     "linux": {
       "target": [
@@ -76,15 +80,15 @@
       ],
       "category": "Network;InstantMessaging;",
       "icon": "build/icon.png",
-      "maintainer": "Dominik Lübben <dominikluebben@googlemail.com>",
-      "vendor": "Dominik Lübben",
+      "maintainer": "UdayaSri0",
+      "vendor": "UdayaSri0; original wrapper by Dominik Lübben",
       "synopsis": "WhatsApp Web Desktop",
-      "description": "Unofficial WhatsApp Web desktop wrapper with tray integration, native notifications, and voice/video calls.",
+      "description": "Unofficial WhatsApp Web desktop wrapper with tray integration and native notifications.",
       "executableName": "whatsapp",
       "desktop": {
         "entry": {
-          "Name": "WhatsApp",
-          "Comment": "WhatsApp Web Desktop",
+          "Name": "WhatsApp (unofficial)",
+          "Comment": "Unofficial WhatsApp Web desktop wrapper",
           "StartupWMClass": "WhatsApp"
         }
       }
@@ -114,5 +118,11 @@
       "artifactName": "whatsapp-electron-${version}-x86_64.rpm",
       "packageCategory": "Applications/Internet"
     }
-  }
+  },
+  "contributors": [
+    {
+      "name": "UdayaSri0",
+      "url": "https://github.com/UdayaSri0"
+    }
+  ]
 }

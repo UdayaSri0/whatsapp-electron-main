@@ -1,5 +1,8 @@
 'use strict';
 
+// Modified 2026-10-22 by the UdayaSri0 fork: secure Linux foundation.
+// Original implementation by Dominik Lübben; GPL-2.0-or-later.
+
 const {
     app,
     BrowserWindow,
@@ -16,13 +19,14 @@ const path = require('node:path');
 const fs = require('node:fs');
 const os = require('node:os');
 const {
-    desktopExecArgument,
     externalUrl,
     isAllowedNavigation,
-    isWhatsAppOrigin,
-    permissionCheckOrigin,
-    permissionRequestOrigin,
 } = require('./security');
+const { installDesktopShortcut } = require('./desktop-integration');
+const { validatedPrefs, writePreferences, restoredWindowBounds } = require('./preferences');
+const { installPermissionHandlers } = require('./permissions');
+const { browserIdentity, compatibilityEnabled, rewriteCompatibilityHeaders } = require('./compatibility');
+const identity = compatibilityEnabled() ? browserIdentity(process.versions.chrome) : null;
 
 // ── App identity ─────────────────────────────────────────────────────
 // Setzt app.getName() / WM_CLASS / userData-Dirname. Muss zur
@@ -53,37 +57,7 @@ function safeOpenExternal(rawUrl) {
 }
 
 // ── Tiny prefs store ────────────────────────────────────────────────
-const PREFS_DEFAULTS = {
-    window: { width: 1280, height: 860, x: undefined, y: undefined, maximized: false },
-    minimizeToTray: true,
-    startMinimized: false,
-};
 const prefsPath = path.join(app.getPath('userData'), 'whatsapp-prefs.json');
-
-function finiteNumber(value, fallback) {
-    return Number.isFinite(value) ? value : fallback;
-}
-
-function validatedPrefs(loaded = {}) {
-    const loadedWindow = loaded.window || {};
-    return {
-        window: {
-            width: finiteNumber(loadedWindow.width, PREFS_DEFAULTS.window.width),
-            height: finiteNumber(loadedWindow.height, PREFS_DEFAULTS.window.height),
-            x: finiteNumber(loadedWindow.x, undefined),
-            y: finiteNumber(loadedWindow.y, undefined),
-            maximized: typeof loadedWindow.maximized === 'boolean'
-                ? loadedWindow.maximized
-                : PREFS_DEFAULTS.window.maximized,
-        },
-        minimizeToTray: typeof loaded.minimizeToTray === 'boolean'
-            ? loaded.minimizeToTray
-            : PREFS_DEFAULTS.minimizeToTray,
-        startMinimized: typeof loaded.startMinimized === 'boolean'
-            ? loaded.startMinimized
-            : PREFS_DEFAULTS.startMinimized,
-    };
-}
 
 let prefs = validatedPrefs();
 try {
@@ -101,10 +75,7 @@ function flushPrefs() {
         saveTimer = null;
     }
     try {
-        const temporaryPath = `${prefsPath}.tmp`;
-        fs.mkdirSync(path.dirname(prefsPath), { recursive: true });
-        fs.writeFileSync(temporaryPath, JSON.stringify(prefs, null, 2));
-        fs.renameSync(temporaryPath, prefsPath);
+        writePreferences(prefsPath, prefs);
     } catch (e) {
         console.warn('[prefs] save failed:', e?.message || e);
     }
@@ -134,43 +105,17 @@ const store = {
 };
 
 // ── Desktop integration (AppImage only) ─────────────────────────────
-// Beim ersten Start aus AppImage einen .desktop-Eintrag + Icon nach
-// ~/.local/share droppen, damit App-Menü und WM-Icon-Mapping funktionieren.
+// User-invoked AppImage shortcut installation. Existing launchers are preserved.
 function ensureDesktopIntegration() {
-    if (process.platform !== 'linux') return;
-    const appImagePath = process.env.APPIMAGE;
-    if (!appImagePath) return;
-    const appImageExec = desktopExecArgument(appImagePath);
-    if (!path.isAbsolute(appImagePath) || !appImageExec) return;
-
+    if (process.platform !== 'linux' || !process.env.APPIMAGE) return;
     try {
-        const homeDir = os.homedir();
-        const appsDir = path.join(homeDir, '.local', 'share', 'applications');
-        const iconsDir = path.join(homeDir, '.local', 'share', 'icons', 'hicolor', '512x512', 'apps');
-        fs.mkdirSync(appsDir, { recursive: true });
-        fs.mkdirSync(iconsDir, { recursive: true });
-
-        const installedIcon = path.join(iconsDir, 'whatsapp-desktop.png');
-        fs.copyFileSync(ICON_PATH, installedIcon);
-
-        const desktopFile = path.join(appsDir, 'whatsapp-desktop.desktop');
-        const desktopBody = [
-            '[Desktop Entry]',
-            'Name=WhatsApp',
-            'Comment=WhatsApp Web Desktop',
-            `Exec=${appImageExec} %U`,
-            'Icon=whatsapp-desktop',
-            'Terminal=false',
-            'Type=Application',
-            'Categories=Network;InstantMessaging;',
-            'StartupWMClass=WhatsApp',
-            '',
-        ].join('\n');
-        let existing = '';
-        try { existing = fs.readFileSync(desktopFile, 'utf8'); } catch { /* not yet there */ }
-        if (existing !== desktopBody) fs.writeFileSync(desktopFile, desktopBody, { mode: 0o644 });
-    } catch (e) {
-        console.warn('[desktop-integration] failed:', e?.message || e);
+        installDesktopShortcut({
+            appImagePath: process.env.APPIMAGE,
+            homeDir: os.homedir(),
+            iconPath: ICON_PATH,
+        });
+    } catch (error) {
+        console.warn('[desktop-integration] failed:', error?.message || error);
     }
 }
 
@@ -196,6 +141,7 @@ function clearLoadRetry() {
 
 function scheduleLoadRetry() {
     clearLoadRetry();
+    if (isQuitting || !mainWindow || mainWindow.isDestroyed()) return;
     loadRetryTimer = setTimeout(() => loadWhatsApp(), loadRetryDelay);
     loadRetryTimer.unref();
     loadRetryDelay = Math.min(loadRetryDelay * 2, 60000);
@@ -204,7 +150,7 @@ function scheduleLoadRetry() {
 function loadWhatsApp({ resetBackoff = false } = {}) {
     clearLoadRetry();
     if (resetBackoff) loadRetryDelay = 5000;
-    if (!mainWindow || mainWindow.isDestroyed()) return;
+    if (isQuitting || !mainWindow || mainWindow.isDestroyed()) return;
     mainWindow.webContents.loadURL(APP_URL).catch((error) => {
         if (error?.code !== 'ERR_ABORTED') {
             console.warn('[navigation] load failed:', error?.message || error);
@@ -212,165 +158,37 @@ function loadWhatsApp({ resetBackoff = false } = {}) {
     });
 }
 
-// ── User-Agent / Client-Hints Spoofing ──────────────────────────────
-// WhatsApp Web gate'd Audio-/Video-Calls anhand von User-Agent Client
-// Hints (Sec-CH-UA + navigator.userAgentData). Sieht es „Electron" in
-// der Brand-Liste, deaktiviert es die Call-Buttons. Drei Stellen müssen
-// überschrieben werden:
-//
-//   1. app.userAgentFallback  → trägt fetch/XHR/WebSocket-Handshakes
-//      (nicht via setUserAgent erreichbar).
-//   2. Sec-CH-UA*-HTTP-Header → Chromium hängt sie automatisch an
-//      jeden Request. Wir schreiben sie pro Request um.
-//   3. navigator.userAgentData → Page-JS liest Brands client-seitig.
-//      Patch wird vom Preload via webFrame in die Main-World injiziert.
-
-const CHROME_FULL_VERSION = process.versions.chrome || '134.0.0.0';
-const CHROME_MAJOR = CHROME_FULL_VERSION.split('.')[0];
-
-function chromiumUserAgent() {
-    return `Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${CHROME_FULL_VERSION} Safari/537.36`;
-}
-
-// Brand-Liste exakt wie ein „nacktes" Chrome — kein Electron, kein Brave.
-const SEC_CH_UA = `"Chromium";v="${CHROME_MAJOR}", "Not_A Brand";v="24", "Google Chrome";v="${CHROME_MAJOR}"`;
-const SEC_CH_UA_FULL = `"Chromium";v="${CHROME_FULL_VERSION}", "Not_A Brand";v="24.0.0.0", "Google Chrome";v="${CHROME_FULL_VERSION}"`;
-
+// Compatibility is isolated to this window and WhatsApp-owned requests.
 function setupClientHintsSpoofing() {
-    // (1) Default-UA für alle Subresources — KEIN setUserAgent, das deckt
-    // nur die Top-Level-Navigation ab.
-    app.userAgentFallback = app.userAgentFallback
-        .replace(/\s*Electron\/\S+/g, '')
-        .replace(/\s*WhatsApp\/\S+/g, '');
-
-    // (2) Header-Rewrite für jede Anfrage an WhatsApp-Domains.
-    const filter = {
-        urls: [
-            'https://*.whatsapp.com/*',
-            'https://*.whatsapp.net/*',
-            'wss://*.whatsapp.com/*',
-            'wss://*.whatsapp.net/*',
-        ],
-    };
-    session.defaultSession.webRequest.onBeforeSendHeaders(filter, (details, callback) => {
-        const h = { ...details.requestHeaders };
-        // Header-Namen können je nach Chromium-Version groß/klein-geschrieben sein.
-        for (const k of Object.keys(h)) {
-            const lk = k.toLowerCase();
-            if (lk === 'sec-ch-ua') h[k] = SEC_CH_UA;
-            else if (lk === 'sec-ch-ua-full-version-list') h[k] = SEC_CH_UA_FULL;
-            else if (lk === 'sec-ch-ua-full-version') h[k] = `"${CHROME_FULL_VERSION}"`;
-            else if (lk === 'user-agent' && /Electron/.test(h[k])) {
-                h[k] = chromiumUserAgent();
-            }
-        }
-        callback({ requestHeaders: h });
+    if (!identity) return;
+    session.defaultSession.webRequest.onBeforeSendHeaders({
+        urls: ['https://*.whatsapp.com/*', 'https://*.whatsapp.net/*', 'wss://*.whatsapp.com/*', 'wss://*.whatsapp.net/*'],
+    }, (details, callback) => {
+        const owner = mainWindow && !mainWindow.isDestroyed() ? mainWindow.webContents.id : null;
+        callback({ requestHeaders: rewriteCompatibilityHeaders(details, identity, owner) });
     });
-}
-
-const GRANTED_PERMISSIONS = new Set([
-    'clipboard-sanitized-write',
-    'display-capture',
-    'fullscreen',
-    'media',
-    'notifications',
-]);
-
-async function selectScreenSource(request) {
-    if (!request.userGesture || !isWhatsAppOrigin(request.securityOrigin)) return null;
-
-    const sources = await desktopCapturer.getSources({
-        types: ['screen'],
-        thumbnailSize: { width: 0, height: 0 },
-    });
-    if (!mainWindow || mainWindow.isDestroyed() || sources.length === 0) return null;
-
-    const labels = sources.map((source, index) => source.name || `Bildschirm ${index + 1}`);
-    const cancelId = labels.length;
-    const result = await dialog.showMessageBox(mainWindow, {
-        type: 'question',
-        title: 'Bildschirm teilen',
-        message: labels.length === 1
-            ? 'WhatsApp möchte deinen Bildschirm teilen.'
-            : 'Welchen Bildschirm möchtest du in WhatsApp teilen?',
-        detail: labels.length === 1 ? labels[0] : 'Die Freigabe kann im Anruf jederzeit beendet werden.',
-        buttons: [...labels, 'Abbrechen'],
-        defaultId: cancelId,
-        cancelId,
-        noLink: true,
-    });
-
-    return result.response < sources.length ? sources[result.response] : null;
 }
 
 function configurePermissions() {
-    const appSession = session.defaultSession;
-
-    appSession.setPermissionRequestHandler((webContents, permission, callback, details) => {
-        const trustedWindow = mainWindow && webContents === mainWindow.webContents;
-        const trustedOrigin = isWhatsAppOrigin(permissionRequestOrigin(details));
-        callback(Boolean(trustedWindow && trustedOrigin && GRANTED_PERMISSIONS.has(permission)));
+    installPermissionHandlers({
+        session: session.defaultSession,
+        getWindow: () => isQuitting ? null : mainWindow,
+        desktopCapturer,
+        dialog,
+        logger: console,
     });
-
-    appSession.setPermissionCheckHandler((_webContents, permission, requestingOrigin, details) => {
-        const origin = permissionCheckOrigin(requestingOrigin, details);
-        return isWhatsAppOrigin(origin) && GRANTED_PERMISSIONS.has(permission);
-    });
-
-    appSession.setDisplayMediaRequestHandler((request, callback) => {
-        selectScreenSource(request)
-            .then(source => callback(source ? { video: source } : {}))
-            .catch((error) => {
-                console.warn('[screen-share] selection failed:', error?.message || error);
-                callback({});
-            });
-    });
-}
-
-function clamp(value, minimum, maximum) {
-    return Math.min(Math.max(value, minimum), maximum);
-}
-
-function visibleArea(rect, workArea) {
-    const width = Math.max(0, Math.min(rect.x + rect.width, workArea.x + workArea.width) - Math.max(rect.x, workArea.x));
-    const height = Math.max(0, Math.min(rect.y + rect.height, workArea.y + workArea.height) - Math.max(rect.y, workArea.y));
-    return width * height;
-}
-
-function restoredWindowBounds(saved) {
-    const hasPosition = Number.isFinite(saved.x) && Number.isFinite(saved.y);
-    const requested = {
-        x: hasPosition ? saved.x : 0,
-        y: hasPosition ? saved.y : 0,
-        width: Math.max(600, saved.width),
-        height: Math.max(600, saved.height),
-    };
-    const displays = screen.getAllDisplays();
-    const isVisible = hasPosition && displays.some(display => visibleArea(requested, display.workArea) >= 64 * 64);
-    const display = isVisible ? screen.getDisplayMatching(requested) : screen.getPrimaryDisplay();
-    const { workArea } = display;
-    const width = Math.min(requested.width, workArea.width);
-    const height = Math.min(requested.height, workArea.height);
-
-    if (!isVisible) return { width, height };
-    return {
-        width,
-        height,
-        x: clamp(saved.x, workArea.x, workArea.x + workArea.width - width),
-        y: clamp(saved.y, workArea.y, workArea.y + workArea.height - height),
-    };
 }
 
 // ── Main window ─────────────────────────────────────────────────────
 function createWindow({ forceShow = false } = {}) {
     const savedBounds = store.get('window');
-    const bounds = restoredWindowBounds(savedBounds);
-    const startMinimized = !forceShow && store.get('startMinimized');
+    const bounds = restoredWindowBounds(savedBounds, screen.getAllDisplays(), screen.getPrimaryDisplay());
+    const startMinimized = !forceShow && Boolean(tray) && store.get('startMinimized');
 
     mainWindow = new BrowserWindow({
         ...bounds,
-        minWidth: 600,
-        minHeight: 600,
+        minWidth: Math.min(600, bounds.width),
+        minHeight: Math.min(600, bounds.height),
         title: 'WhatsApp',
         backgroundColor: '#111b21',
         icon: ICON_PATH,
@@ -385,12 +203,7 @@ function createWindow({ forceShow = false } = {}) {
             spellcheck: true,
             // Calls leiden, wenn Chromium den Renderer im Hintergrund drosselt.
             backgroundThrottling: false,
-            // Preload muss die Chrome-Version kennen, um navigator.userAgentData
-            // konsistent zu den Sec-CH-UA-Headern zu fälschen.
-            additionalArguments: [
-                `--kcw-chrome-major=${CHROME_MAJOR}`,
-                `--kcw-chrome-full=${CHROME_FULL_VERSION}`,
-            ],
+            additionalArguments: identity?.additionalArguments || [],
         },
     });
 
@@ -407,14 +220,7 @@ function createWindow({ forceShow = false } = {}) {
     const revealFallback = setTimeout(revealWindow, 4000);
     revealFallback.unref();
 
-    // UA MUSS vor loadURL gesetzt werden, sonst macht der erste Request
-    // schon den falschen UA und WhatsApp redirectet weg.
-    mainWindow.webContents.setUserAgent(chromiumUserAgent());
-    // Zusätzlich auf Session-Ebene, damit Subresources (Avatare, JS-Bundles)
-    // ebenfalls den korrekten UA tragen.
-    session.defaultSession.setUserAgent(chromiumUserAgent());
-
-    loadWhatsApp({ resetBackoff: true });
+    if (identity) mainWindow.webContents.setUserAgent(identity.userAgent);
 
     // ── Bounds persistieren ─────────────────────────────────────
     const saveBounds = () => {
@@ -433,7 +239,7 @@ function createWindow({ forceShow = false } = {}) {
 
     // ── Schließen → Tray ─────────────────────────────────────────
     mainWindow.on('close', (e) => {
-        if (!isQuitting && store.get('minimizeToTray')) {
+        if (!isQuitting && tray && !tray.isDestroyed() && store.get('minimizeToTray')) {
             e.preventDefault();
             mainWindow.hide();
         }
@@ -442,9 +248,12 @@ function createWindow({ forceShow = false } = {}) {
         clearTimeout(revealFallback);
         clearLoadRetry();
         mainWindow = null;
+        unreadCount = 0;
+        updateBadge();
     });
 
     mainWindow.webContents.on('did-finish-load', () => {
+        if (!mainWindow || !isAllowedNavigation(mainWindow.webContents.getURL())) return;
         clearLoadRetry();
         loadRetryDelay = 5000;
     });
@@ -483,39 +292,56 @@ function createWindow({ forceShow = false } = {}) {
         safeOpenExternal(url);
     };
     mainWindow.webContents.on('will-navigate', guardNavigation);
-    mainWindow.webContents.on('will-redirect', guardNavigation);
+    mainWindow.webContents.on('will-frame-navigate', (event) => {
+        if (!event.isMainFrame && !isAllowedNavigation(event.url)) event.preventDefault();
+    });
+    // Redirects are not deliberate external-link activations. Block without
+    // launching another application, including redirects in child frames.
+    mainWindow.webContents.on('will-redirect', (event, url) => {
+        if (!isAllowedNavigation(url)) event.preventDefault();
+    });
 
     mainWindow.webContents.on('will-attach-webview', (e) => e.preventDefault());
+    // Install every guard before initiating even the first navigation.
+    loadWhatsApp({ resetBackoff: true });
 }
 
 // ── Tray ────────────────────────────────────────────────────────────
 function createTray() {
-    const trayIcon = nativeImage.createFromPath(ICON_PATH).resize({ width: 22, height: 22 });
-    tray = new Tray(trayIcon);
-    tray.setToolTip('WhatsApp');
+    if (process.env.WHATSAPP_DISABLE_TRAY === '1') return;
+    try {
+        const trayIcon = nativeImage.createFromPath(ICON_PATH).resize({ width: 22, height: 22 });
+        tray = new Tray(trayIcon);
+        tray.setToolTip('WhatsApp');
 
-    const menu = Menu.buildFromTemplate([
-        { label: 'Öffnen', click: () => showWindow() },
-        { type: 'separator' },
-        {
-            label: 'Beim Schließen ins Tray minimieren',
-            type: 'checkbox',
-            checked: store.get('minimizeToTray'),
-            click: (item) => store.set('minimizeToTray', item.checked),
-        },
-        {
-            label: 'Beim Start im Tray bleiben',
-            type: 'checkbox',
-            checked: store.get('startMinimized'),
-            click: (item) => store.set('startMinimized', item.checked),
-        },
-        { type: 'separator' },
-        { label: 'Neu laden', click: () => loadWhatsApp({ resetBackoff: true }) },
-        { type: 'separator' },
-        { label: 'Beenden', click: () => { isQuitting = true; app.quit(); } },
-    ]);
-    tray.setContextMenu(menu);
-    tray.on('click', () => toggleWindow());
+        const menu = Menu.buildFromTemplate([
+            { label: 'Open', click: () => showWindow() },
+            { type: 'separator' },
+            {
+                label: 'Minimize to tray on close',
+                type: 'checkbox',
+                checked: store.get('minimizeToTray'),
+                click: (item) => store.set('minimizeToTray', item.checked),
+            },
+            {
+                label: 'Start minimized (requires tray)',
+                type: 'checkbox',
+                checked: store.get('startMinimized'),
+                click: (item) => store.set('startMinimized', item.checked),
+            },
+            { type: 'separator' },
+            { label: 'Install AppImage desktop shortcut', visible: Boolean(process.env.APPIMAGE), click: ensureDesktopIntegration },
+            { label: 'Reload', click: () => loadWhatsApp({ resetBackoff: true }) },
+            { type: 'separator' },
+            { label: 'Quit', click: () => { isQuitting = true; app.quit(); } },
+        ]);
+        tray.setContextMenu(menu);
+        tray.on('click', () => toggleWindow());
+    } catch (error) {
+        try { tray?.destroy(); } catch { /* tray already unavailable */ }
+        tray = null;
+        console.warn('[tray] unavailable; keeping window accessible:', error?.message || error);
+    }
 }
 
 function showWindow() {
@@ -535,8 +361,8 @@ function toggleWindow() {
 }
 
 function updateBadge() {
-    if (tray) {
-        tray.setToolTip(unreadCount > 0 ? `WhatsApp · ${unreadCount} ungelesen` : 'WhatsApp');
+    if (tray && !tray.isDestroyed()) {
+        tray.setToolTip(unreadCount > 0 ? `WhatsApp · ${unreadCount} unread` : 'WhatsApp');
     }
     // Unity/KDE Badge an der Taskbar — auf GNOME ohne Extension wirkungslos,
     // schadet aber nichts.
@@ -544,26 +370,32 @@ function updateBadge() {
 }
 
 // ── Second instance ─────────────────────────────────────────────────
-app.on('second-instance', () => showWindow());
+let pendingShow = false;
+app.on('second-instance', () => {
+    if (app.isReady()) showWindow();
+    else pendingShow = true;
+});
 
 // ── Lifecycle ───────────────────────────────────────────────────────
 app.whenReady().then(() => {
     setupClientHintsSpoofing();
     configurePermissions();
-    ensureDesktopIntegration();
-    createWindow();
     createTray();
+    createWindow({ forceShow: pendingShow });
 
     app.on('activate', () => {
         if (BrowserWindow.getAllWindows().length === 0) createWindow({ forceShow: true });
         else showWindow();
     });
+}).catch((error) => {
+    console.error('[startup] failed:', error?.message || error);
+    app.quit();
 });
 
 app.on('window-all-closed', () => {
     // Auf Linux/Windows in den Tray bleiben; auf macOS Standard-Verhalten.
     if (process.platform === 'darwin') return;
-    if (!store.get('minimizeToTray')) app.quit();
+    if (!tray || tray.isDestroyed() || !store.get('minimizeToTray')) app.quit();
 });
 
 app.on('before-quit', () => {
