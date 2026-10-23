@@ -1,0 +1,34 @@
+name: Feature request
+description: Suggest a focused improvement for the unofficial Linux wrapper.
+title: "[Feature] "
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not include account content, QR codes, messages, contacts, media, cookies, access tokens or full profiles.
+        Screen sharing is intentionally blocked until a safe permission boundary is verified.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or use case
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Relevant environment
+      description: Include app version, package, distribution, desktop/compositor and GPU if relevant.
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Safety acknowledgement
+      options:
+        - label: I understand this project is unofficial and screen sharing is currently blocked by design.
+          required: true

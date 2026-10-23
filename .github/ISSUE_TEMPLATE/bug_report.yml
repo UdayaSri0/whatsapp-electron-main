@@ -1,0 +1,88 @@
+name: Bug report
+description: Report a reproducible problem without sharing private WhatsApp data.
+title: "[Bug] "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not attach QR codes, messages, contacts, media, cookies, access tokens, or full profiles.
+        Use Help → Copy Diagnostics and remove private data from any logs before submitting.
+  - type: input
+    id: app-version
+    attributes:
+      label: App version
+      placeholder: v1.2.0-rc.1
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: Distribution and kernel
+      placeholder: Ubuntu 24.04, kernel 6.x
+    validations:
+      required: true
+  - type: dropdown
+    id: package
+    attributes:
+      label: Package format
+      options: [DEB, AppImage, RPM, Arch, source/development]
+    validations:
+      required: true
+  - type: input
+    id: desktop
+    attributes:
+      label: Desktop and compositor
+      placeholder: GNOME / Wayland or KDE / X11
+  - type: input
+    id: gpu
+    attributes:
+      label: GPU and driver
+      placeholder: Intel, AMD or NVIDIA; driver version if known
+  - type: dropdown
+    id: identity
+    attributes:
+      label: Browser identity mode
+      options: [Compatibility (default), Native, Not known, Not applicable]
+  - type: textarea
+    id: steps
+    attributes:
+      label: Reproduction steps
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Sanitized diagnostics
+      description: Paste only Help → Copy Diagnostics output after reviewing it for private data.
+  - type: textarea
+    id: logs
+    attributes:
+      label: Sanitized logs
+      description: Do not include chats, tokens, cookies, profile dumps or authentication data.
+  - type: dropdown
+    id: calling-exposed
+    attributes:
+      label: Did WhatsApp expose calling controls?
+      options: [Not tested, No, Yes — not validated, Yes — real call tested]
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Safety acknowledgement
+      options:
+        - label: I understand screen sharing is intentionally blocked in this release.
+          required: true
+        - label: I removed QR codes, messages, contacts, media, cookies, access tokens and full profiles.
+          required: true

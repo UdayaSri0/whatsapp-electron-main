@@ -1,16 +1,15 @@
 # Release candidate validation
 
 Candidate: **1.2.0-rc.1**, dated 2026-10-23. Owner/maintainer: UdayaSri0.
-Feature branch: `feat/first-linux-release-candidate`, based on foundation commit
-`0ec99b9714a95a5ac667dea53f2c0f0424f22b76`. This is a release candidate, not
-production acceptance. No merge, stable tag or production publication is implied.
+Current main: `83be73708c01414e363f49c3421ccabbd7abde26`, containing merged PR #2.
+This is a release candidate, not production acceptance. No stable release is
+implied; the intended public channel is a GitHub prerelease.
 
 ## Current engineering checks
 
-A fresh checkout was restored under `/home/rog/Projects/whatsapp-electron-main`
-because the previous removable-volume checkout is no longer mounted. This avoids
-the earlier exFAT symlink limitation. Current host: Linux x86_64, Ubuntu/GNOME,
-Wayland session, Node 24.19.0. The existing account/profile was not accessed.
+A native checkout was used at `/home/rog/Projects/whatsapp-electron-main`.
+Current host evidence: Linux x86_64, Ubuntu/GNOME, Wayland session, Node 24.19.0.
+The existing account/profile was not accessed.
 
 - Clean `npm ci --no-audit --fetch-retries=1 --fetch-timeout=30000`: **PASS**, 284
   packages installed. Electron's binary is fetched lazily by this pinned npm package;
@@ -43,18 +42,14 @@ remain enabled. Mocks do not verify hardware or Chromium media behavior.
 
 ## Candidate artifacts and runtime
 
-The updated CI builds directory, DEB and AppImage candidates and pairs them with
-corresponding source, BUILD-COMMIT.txt and SHA256SUMS. The manual candidate workflow
-also supports RPM. [Candidate CI run 39932379436](https://github.com/UdayaSri0/whatsapp-electron-main/actions/runs/39932379436)
-**PASSED** for commit `211cb8ca6c11d42238ec0ccd867010e6b776508b`: clean installs,
-static checks and 62 tests on Node 22/24; directory/DEB/AppImage builds; DEB
-inspection; matching source/provenance generation; SHA-256 verification; upload.
-[Candidate bundle](https://github.com/UdayaSri0/whatsapp-electron-main/actions/runs/39932379436/artifacts/12492217477)
-expires 2026-10-30; ZIP SHA-256
-`d2a5f461eb042ceef29a8790f1b887b4d6566d179d1f443fb16d5368233d54ce`.
-This final documentation correction changes no runtime code. Updated final-head
-run/artifact URLs are recorded in [draft PR #2](https://github.com/UdayaSri0/whatsapp-electron-main/pull/2)
-after execution. A queued or pending workflow is not PASS.
+The current-main CI snapshot reports a successful validation run
+[39933715913](https://github.com/UdayaSri0/whatsapp-electron-main/actions/runs/39933715913)
+for the merged main line, with a temporary artifact available until 2026-10-30.
+Those are CI results for the recorded main snapshot, not proof of authenticated
+account behavior or calling. The manual candidate workflow also supports RPM.
+[Main CI artifact](https://github.com/UdayaSri0/whatsapp-electron-main/actions/runs/39933715913/artifacts/12492916793)
+is temporary and must not be treated as a permanent release asset. A queued or
+pending workflow is not PASS.
 
 Native sandboxed startup/QR rendering, account linking, existing session restore,
 real messaging and calls must each be distinguished. A fresh-profile smoke test
