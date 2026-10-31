@@ -4,6 +4,8 @@ const assert = require('node:assert/strict');
 const { variants, resolveVariant, userDataPath, buildConfig } = require('../config/variants');
 const pkg = require('../package.json');
 const path = require('node:path');
+const fs = require('node:fs');
+const vm = require('node:vm');
 
 test('personal identity preserves the installed application and profile names', () => {
     const personal = variants.personal;
@@ -27,6 +29,17 @@ test('packaged builds ignore environment variant selection and require baked ide
     assert.equal(resolveVariant({ packaged: true, packagedVariant: 'business', requested: 'personal' }).name, 'business');
     assert.throws(() => resolveVariant({ packaged: true, requested: 'business' }), /packaged variant/);
     assert.throws(() => resolveVariant({ packaged: true, packagedVariant: 'other' }), /Unknown application variant/);
+});
+
+test('runtime identity loads when electron-builder removes build metadata from package.json', () => {
+    const module = { exports: {} };
+    const load = vm.runInNewContext(`(function(require, module, exports) {${fs.readFileSync('config/variants.js', 'utf8')}\n})`, { __dirname: path.resolve('config') });
+    load(name => {
+        if (name === 'node:path') return path;
+        throw new Error(`Unexpected runtime dependency: ${name}`);
+    }, module, module.exports);
+    assert.equal(module.exports.resolveVariant({ packaged: true, packagedVariant: 'business' }).appId,
+        'com.udayasri0.business-chat-whatsapp-unofficial');
 });
 
 test('only development runs accept an explicit variant request', () => {

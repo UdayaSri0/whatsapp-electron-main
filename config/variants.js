@@ -1,13 +1,12 @@
 'use strict';
 
 const path = require('node:path');
-const pkg = require('../package.json');
 
 const variants = Object.freeze({
     personal: Object.freeze({
         name: 'personal', productName: 'WhatsApp', description: 'Unofficial WhatsApp Web desktop wrapper for Linux',
         packageSynopsis: 'WhatsApp Web Desktop', packageDescription: 'Unofficial WhatsApp Web desktop wrapper with tray integration and native notifications.', desktopComment: 'Unofficial WhatsApp Web desktop wrapper',
-        packageName: 'whatsapp-electron', appId: pkg.build.appId, executableName: 'whatsapp',
+        packageName: 'whatsapp-electron', appId: 'com.dluebben.whatsapp-desktop', executableName: 'whatsapp',
         windowTitle: 'WhatsApp', wmClass: 'WhatsApp', desktopName: 'whatsapp', profileDirectory: 'WhatsApp', trayName: 'WhatsApp',
         desktopFile: 'whatsapp.desktop', launcherName: 'whatsapp-desktop', launcherLabel: 'WhatsApp (unofficial)', launcherComment: 'WhatsApp Web Desktop',
         autostartFile: 'whatsapp-electron.desktop', iconFile: 'src/icon.png', iconPath: path.join(__dirname, '../src/icon.png'),
@@ -39,16 +38,16 @@ function userDataPath(appDataPath, variant) {
     return path.join(appDataPath, variant.profileDirectory);
 }
 
-function buildConfig(variantName) {
+function buildConfig(variantName, baseBuild = require('../package.json').build) {
     const variant = variants[variantName];
     if (!variant) throw new Error(`Unknown application variant: ${variantName}`);
-    const linux = pkg.build.linux;
+    const linux = baseBuild.linux;
     return {
-        ...pkg.build,
+        ...baseBuild,
         appId: variant.appId,
         productName: variant.productName,
         extraMetadata: { name: variant.packageName, productName: variant.productName, description: variant.description, desktopName: variant.desktopName, whatsappVariant: variant.name },
-        directories: { ...pkg.build.directories, buildResources: variant.name === 'personal' ? 'build' : 'build/business' },
+        directories: { ...baseBuild.directories, buildResources: variant.name === 'personal' ? 'build' : 'build/business' },
         linux: {
             ...linux,
             executableName: variant.executableName,
@@ -58,9 +57,9 @@ function buildConfig(variantName) {
             description: variant.packageDescription || variant.description,
             desktop: { ...linux.desktop, entry: { Name: variant.name === 'personal' ? 'WhatsApp (unofficial)' : variant.productName, Comment: variant.desktopComment || variant.description, StartupWMClass: variant.wmClass } },
         },
-        appImage: { ...pkg.build.appImage, artifactName: variant.artifactNames.appImage },
-        deb: { ...pkg.build.deb, artifactName: variant.artifactNames.deb, packageName: variant.packageName },
-        rpm: { ...pkg.build.rpm, artifactName: variant.artifactNames.rpm, packageName: variant.packageName },
+        appImage: { ...baseBuild.appImage, artifactName: variant.artifactNames.appImage },
+        deb: { ...baseBuild.deb, artifactName: variant.artifactNames.deb, packageName: variant.packageName },
+        rpm: { ...baseBuild.rpm, artifactName: variant.artifactNames.rpm, packageName: variant.packageName },
     };
 }
 
