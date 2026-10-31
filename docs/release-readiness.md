@@ -2,9 +2,12 @@
 
 ## Current status
 
-Current package version: `1.2.0-rc.1`. No stable release, public binary upload
-or WhatsApp/Meta authorization is recorded. A release workflow can prepare a
-**draft** only; a maintainer must review and manually publish it.
+Current package version: `1.2.0-rc.1`. The repository already has a public
+Personal-only prerelease, `v1.2.0-rc.1` (published 2026-10-23), with Personal
+DEB, AppImage and RPM assets. It predates PR #6; this change has not modified
+that release. No stable release or Business binary is present, and no
+WhatsApp/Meta authorization is recorded. The new workflow prepares a **draft**
+only; a maintainer must review and manually publish it.
 
 | Requirement | Status | Evidence / next action |
 | --- | --- | --- |
@@ -16,7 +19,7 @@ or WhatsApp/Meta authorization is recorded. A release workflow can prepare a
 | Routine pull-request CI uploads binaries | PASS | CI builds and validates packages but uploads no artifacts |
 | Public publication policy clearance for Personal wrapper | BLOCKED | Official policy review/legal advice required; being the existing Personal app does not establish third-party client support |
 | Public Business distribution authorization | BLOCKED | No written WhatsApp/Meta authorization; keep `BUSINESS_DISTRIBUTION_AUTHORIZED` environment secret unset |
-| Historical Personal QR/login/text checks | PASS* | Owner-marked in [issue #5](https://github.com/UdayaSri0/whatsapp-electron-main/issues/5) for the earlier `1.2.0-rc.1` candidate; not independently repeated on PR #6 |
+| Historical Personal QR/login/text checks | BLOCKED | Issue #5 has these boxes checked, while the published RC notes say they were NOT verified; reconcile the evidence before treating them as PASS |
 | Business login and communication acceptance | BLOCKED | Requires policy clearance, any required written authorization, explicit account-owner approval and consenting test participants |
 | Cross-variant logout/session isolation with linked accounts | NOT RUN | Must be verified after account-use authorization; no account was linked during this task |
 | Real DEB package-manager install/upgrade/removal on target distros | NOT RUN | Use disposable VM/snapshot; package scripts must not run on the developer's host for this acceptance |

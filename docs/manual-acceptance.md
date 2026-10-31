@@ -6,21 +6,22 @@ at an existing home directory, copy a real profile, or inspect credentials,
 QR contents, cookies, messages, contacts or media. Restore the snapshot after
 each install/upgrade/removal sequence.
 
-The current status is **NOT RUN** unless a row says otherwise. `PASS*` means a
-repository owner marked the earlier Personal release-candidate check complete
-in issue #5; it was not independently repeated in this task. New account and
-live-service checks are **BLOCKED** until policy/legal review and any required
-written authorization are complete. Even then, use only consenting test
-accounts and participants after the account owner explicitly approves the test.
-No live test is authorized by this checklist.
+The current status is **NOT RUN** unless a row says otherwise. Issue #5 has
+Personal login/session/text boxes checked, but the published RC notes say those
+checks were not verified. Treat that historical evidence as **BLOCKED** until
+the records are reconciled. New account and live-service checks are also
+**BLOCKED** until policy/legal review and any required written authorization are
+complete. Even then, use only consenting test accounts and participants after
+the account owner explicitly approves the test. No live test is authorized by
+this checklist.
 
 | Acceptance case | Personal | Business | Safe evidence / notes |
 | --- | --- | --- | --- |
 | Fresh launch, app name, icon, executable, WM_CLASS and menu identity | NOT RUN | NOT RUN | In snapshot; do not log in |
 | Simultaneous launch and separate profile directories | PASS | PASS | AppImage startup on Ubuntu 26.10 GNOME Wayland; temporary shared XDG root; no account linked |
-| QR linking and initial session creation | PASS* | BLOCKED | *Owner-checked for the earlier Personal `1.2.0-rc.1` candidate in [issue #5](https://github.com/UdayaSri0/whatsapp-electron-main/issues/5); not independently repeated here. Business needs policy clearance and explicit account-owner approval. |
-| Relaunch restores only that variant's linked session | PASS* | BLOCKED | *Owner-checked for earlier Personal candidate in issue #5; Business needs policy clearance and approval. Cross-variant logout independence remains NOT RUN. |
-| Send and receive text messages | PASS* | BLOCKED | *Owner-checked for earlier Personal candidate in issue #5; Business needs policy clearance and two consenting participants. |
+| QR linking and initial session creation | BLOCKED | BLOCKED | Issue #5 marks Personal complete, but published RC notes say NOT verified. Reconcile evidence; Business also needs policy clearance and explicit account-owner approval. |
+| Relaunch restores only that variant's linked session | BLOCKED | BLOCKED | Same conflicting historical Personal record; Business needs policy clearance and approval. Cross-variant logout independence remains NOT RUN. |
+| Send and receive text messages | BLOCKED | BLOCKED | Same conflicting historical Personal record; Business needs policy clearance and two consenting participants. |
 | Send and receive image and document attachments | BLOCKED | BLOCKED | Use non-sensitive test files only after authorization |
 | Notification delivery, unread count and focus behavior | BLOCKED | BLOCKED | Requires linked account; inspect no message content in logs |
 | Tray open, hide, restore, close-to-tray and quit behavior | NOT RUN | NOT RUN | Test GNOME/KDE where available; no account needed for shell behavior |
