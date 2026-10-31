@@ -90,6 +90,10 @@ npm run build:all
 npm run build:rpm:all # optional; requires rpmbuild
 ```
 
+`build:all` also runs `verify:packages`, which inspects both generated DEBs for
+distinct package names, desktop files and removal scripts that leave user
+profiles untouched. It does not install or remove the packages.
+
 DEB and AppImage targets build on Linux x86_64. RPMs are optional and should be
 built as a matching pair. The build script writes per-variant/per-target
 `BUILD-METADATA.*.json` records containing the source commit and artifact SHA-256.
@@ -124,4 +128,5 @@ attach QR codes, messages, contacts, media, cookies, tokens or profile contents.
 
 Automated tests cover identity selection, profile path separation, launcher and
 autostart filenames, security handlers, diagnostics redaction and package
-metadata. They do not substitute for those live checks.
+metadata/removal-script isolation. They do not substitute for package-manager or
+live account checks.

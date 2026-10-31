@@ -11,6 +11,7 @@ const { execFileSync, spawnSync } = require('node:child_process');
 const pkg = require('../package.json');
 const lock = require('../package-lock.json');
 const { variants } = require('../config/variants');
+const { assertRemovalIsolation } = require('../scripts/verify-packages');
 
 test('packaging preserves profile identity and upstream authorship', () => {
     assert.equal(pkg.name, 'whatsapp-electron');
@@ -75,6 +76,14 @@ test('variant package builds refuse modified build inputs before loading builder
         assert.match(result.stderr, /Commit build inputs before creating package artifacts/);
         assert.doesNotMatch(result.stderr, /Cannot find module 'electron-builder'/);
     } finally { fs.rmSync(directory, { recursive: true, force: true }); }
+});
+
+test('DEB removal scripts only remove their own binaries and preserve user profiles', () => {
+    const personal = "update-alternatives --remove 'whatsapp' '/opt/WhatsApp/whatsapp'\nAPPARMOR_PROFILE_DEST='/etc/apparmor.d/whatsapp'";
+    const business = "update-alternatives --remove 'whatsapp-business-unofficial' '/opt/Business Chat for WhatsApp (Unofficial)/whatsapp-business-unofficial'\nAPPARMOR_PROFILE_DEST='/etc/apparmor.d/whatsapp-business-unofficial'";
+    assert.doesNotThrow(() => assertRemovalIsolation(personal, business));
+    assert.throws(() => assertRemovalIsolation(personal, `${business}\nrm -rf /opt/WhatsApp/whatsapp`), /only their own/);
+    assert.throws(() => assertRemovalIsolation(personal, `${business}\nrm -rf /home/user/.config/WhatsApp`), /user profile data/);
 });
 
 test('release assets archive committed source, verify checksums and reject modified sources', () => {

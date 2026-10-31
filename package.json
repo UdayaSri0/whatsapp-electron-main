@@ -44,7 +44,8 @@
     "build:personal": "node scripts/build-variant.js personal",
     "prebuild:business": "npm run check:node",
     "build:business": "node scripts/build-variant.js business",
-    "build:all": "npm run build:personal && npm run build:business",
+    "build:all": "npm run build:personal && npm run build:business && npm run verify:packages",
+    "verify:packages": "node scripts/verify-packages.js",
     "build:rpm:all": "node scripts/build-variant.js personal rpm && node scripts/build-variant.js business rpm",
     "release:assets": "node scripts/release-assets.js"
   },
