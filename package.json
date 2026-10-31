@@ -1,6 +1,7 @@
 {
   "name": "whatsapp-electron",
   "productName": "WhatsApp",
+  "whatsappVariant": "personal",
   "version": "1.2.0-rc.1",
   "description": "Unofficial WhatsApp Web desktop wrapper for Linux",
   "author": {
@@ -25,6 +26,8 @@
     "check:node": "node scripts/check-node.js",
     "prestart": "npm run check:node",
     "start": "electron .",
+    "start:personal": "WHATSAPP_VARIANT=personal electron .",
+    "start:business": "WHATSAPP_VARIANT=business electron .",
     "test": "node --test",
     "prebuild": "npm run check:node",
     "build": "electron-builder --linux AppImage --publish never",
@@ -36,7 +39,13 @@
     "build:linux": "electron-builder --linux AppImage deb rpm --x64 --publish never",
     "prebuild:dir": "npm run check:node",
     "build:dir": "electron-builder --linux dir --publish never",
-    "check": "npm run check:node && node scripts/check.js",
+    "check": "npm run check:node && node scripts/check.js && node scripts/check-variants.js",
+    "prebuild:personal": "npm run check:node",
+    "build:personal": "node scripts/build-variant.js personal",
+    "prebuild:business": "npm run check:node",
+    "build:business": "node scripts/build-variant.js business",
+    "build:all": "npm run build:personal && npm run build:business",
+    "build:rpm:all": "node scripts/build-variant.js personal rpm && node scripts/build-variant.js business rpm",
     "release:assets": "node scripts/release-assets.js"
   },
   "devDependencies": {
@@ -65,6 +74,8 @@
     },
     "files": [
       "src/**/*",
+      "config/variants.js",
+      "build/business/icon.png",
       "package.json",
       "LICENSE",
       "README.md",

@@ -29,12 +29,17 @@ const { getAutostartStatus, setAutostart } = require('./autostart');
 const { validatedPrefs, writePreferences, restoredWindowBounds } = require('./preferences');
 const { installPermissionHandlers } = require('./permissions');
 const { browserIdentity, compatibilityEnabled, rewriteCompatibilityHeaders } = require('./compatibility');
-const identity = compatibilityEnabled() ? browserIdentity(process.versions.chrome) : null;
+const { resolveVariant, userDataPath } = require('../config/variants');
+const variant = resolveVariant({ packaged: app.isPackaged, packagedVariant: require('../package.json').whatsappVariant, requested: process.env.WHATSAPP_VARIANT });
+// Retain the established Personal workaround; the new Business build uses Chromium's native identity.
+const identity = variant.name === 'personal' && compatibilityEnabled() ? browserIdentity(process.versions.chrome) : null;
 
 // ── App identity ─────────────────────────────────────────────────────
 // Keep the established name, WM_CLASS and profile directory aligned with
 // the installed desktop entry so existing sessions and window grouping survive.
-app.setName('WhatsApp');
+app.setName(variant.productName);
+if (process.platform === 'linux') app.setDesktopName(variant.desktopName);
+app.setPath('userData', userDataPath(app.getPath('appData'), variant));
 app.enableSandbox();
 
 // Modern Electron selects Wayland automatically; leave native Ozone detection intact.
@@ -47,7 +52,7 @@ if (process.env.WAYLAND_DISPLAY || process.env.XDG_SESSION_TYPE === 'wayland') {
 
 // ── Constants ────────────────────────────────────────────────────────
 const APP_URL = 'https://web.whatsapp.com/';
-const ICON_PATH = path.join(__dirname, 'icon.png');
+const ICON_PATH = path.join(__dirname, '..', variant.iconFile);
 
 function safeOpenExternal(rawUrl) {
     const url = externalUrl(rawUrl);
@@ -115,6 +120,7 @@ function ensureDesktopIntegration() {
             appImagePath: process.env.APPIMAGE,
             homeDir: os.homedir(),
             iconPath: ICON_PATH,
+            variant,
         });
         showDialog({ type: 'info', title: 'Desktop shortcut',
             message: 'Desktop shortcut installed', detail: result.desktopFile });
@@ -194,7 +200,7 @@ function createWindow({ forceShow = false } = {}) {
         ...bounds,
         minWidth: Math.min(600, bounds.width),
         minHeight: Math.min(600, bounds.height),
-        title: 'WhatsApp',
+        title: variant.windowTitle,
         backgroundColor: '#111b21',
         icon: ICON_PATH,
         autoHideMenuBar: false,
@@ -327,7 +333,7 @@ function integrationError(title, error) {
 }
 
 function autostartOptions() {
-    return { appImagePath: process.env.APPIMAGE, executablePath: process.execPath, homeDir: os.homedir(), configDir: process.env.XDG_CONFIG_HOME };
+    return { appImagePath: process.env.APPIMAGE, executablePath: process.execPath, homeDir: os.homedir(), configDir: process.env.XDG_CONFIG_HOME, variant };
 }
 
 function togglePreference(key, value) {
@@ -391,6 +397,7 @@ function refreshMenus() {
                 try { clipboard.writeText(diagnosticText({
                 version: app.getVersion(), electron: process.versions.electron, chrome: process.versions.chrome,
                 node: process.versions.node, platform: process.platform, arch: process.arch,
+                appIdentifier: variant.diagnosticsIdentifier,
                 sessionType: process.env.XDG_SESSION_TYPE, desktop: process.env.XDG_CURRENT_DESKTOP,
                 identityMode: identity ? 'compatibility' : 'native', trayAvailable: Boolean(tray && !tray.isDestroyed()),
                 microphoneEnabled: store.get('microphoneEnabled'), cameraEnabled: store.get('cameraEnabled'), screenSharing: 'blocked',
@@ -398,8 +405,8 @@ function refreshMenus() {
                 catch (error) { integrationError('Copy Diagnostics', error); }
             } },
             { label: 'About', click: () => showDialog({
-                type: 'info', title: 'About WhatsApp for Linux', message: `WhatsApp for Linux ${app.getVersion()}`,
-                detail: 'Unofficial WhatsApp Web desktop application. Maintained by UdayaSri0.\nBased on the original work of Dominik Lübben. GPL-2.0-or-later.\nNot affiliated with or endorsed by WhatsApp or Meta.',
+                type: 'info', title: `About ${variant.productName}`, message: `${variant.productName} ${app.getVersion()}`,
+                detail: `${variant.description}. Maintained by UdayaSri0.\nBased on the original work of Dominik Lübben. GPL-2.0-or-later.\nNot affiliated with or endorsed by WhatsApp or Meta.`,
             }) },
         ] },
     ]));
@@ -412,7 +419,7 @@ function createTray() {
     try {
         const trayIcon = nativeImage.createFromPath(ICON_PATH).resize({ width: 22, height: 22 });
         tray = new Tray(trayIcon);
-        tray.setToolTip('WhatsApp');
+        tray.setToolTip(variant.trayName);
 
         tray.setContextMenu(Menu.buildFromTemplate(trayMenuItems()));
         tray.on('click', () => toggleWindow());
@@ -441,7 +448,7 @@ function toggleWindow() {
 
 function updateBadge() {
     if (tray && !tray.isDestroyed()) {
-        tray.setToolTip(unreadCount > 0 ? `WhatsApp · ${unreadCount} unread` : 'WhatsApp');
+        tray.setToolTip(unreadCount > 0 ? `${variant.trayName} · ${unreadCount} unread` : variant.trayName);
     }
     // Desktop badge support varies by desktop environment.
     try { app.setBadgeCount(unreadCount); } catch { /* not supported on this DE */ }

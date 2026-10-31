@@ -14,24 +14,28 @@ function existingBytes(filename) {
 
 // Only invoked by the user's tray action. Never replace an existing file,
 // including an empty launcher, a customized icon, or a concurrent installation.
-function installDesktopShortcut({ appImagePath, homeDir, iconPath }) {
+function installDesktopShortcut({ appImagePath, homeDir, iconPath, variant = {} }) {
     const executable = desktopExecArgument(appImagePath);
     if (!executable || !path.isAbsolute(appImagePath)) throw new Error('Invalid AppImage path');
-    const desktopFile = path.join(homeDir, '.local/share/applications/whatsapp-desktop.desktop');
-    const iconFile = path.join(homeDir, '.local/share/icons/hicolor/512x512/apps/whatsapp-desktop.png');
+    const launcherName = variant.launcherName || 'whatsapp-desktop';
+    const productName = variant.launcherLabel || variant.productName || 'WhatsApp (unofficial)';
+    const description = variant.launcherComment || variant.description || 'WhatsApp Web Desktop';
+    const wmClass = variant.wmClass || 'WhatsApp';
+    const desktopFile = path.join(homeDir, `.local/share/applications/${launcherName}.desktop`);
+    const iconFile = path.join(homeDir, `.local/share/icons/hicolor/512x512/apps/${launcherName}.png`);
     const desktop = Buffer.from([
         '[Desktop Entry]',
-        'Name=WhatsApp (unofficial)',
-        'Comment=WhatsApp Web Desktop',
+        `Name=${productName}`,
+        `Comment=${description}`,
         // GIO checks the executable before expanding %% field escapes. With a
         // literal percent in the path, use env as the executable and pass the
         // absolute AppImage path as an argument. No shell is involved.
         `Exec=${appImagePath.includes('%') ? '/usr/bin/env -- ' : ''}${executable} %U`,
-        'Icon=whatsapp-desktop',
+        `Icon=${launcherName}`,
         'Terminal=false',
         'Type=Application',
         'Categories=Network;InstantMessaging;',
-        'StartupWMClass=WhatsApp',
+        `StartupWMClass=${wmClass}`,
         '',
     ].join('\n'));
     const icon = fs.readFileSync(iconPath);

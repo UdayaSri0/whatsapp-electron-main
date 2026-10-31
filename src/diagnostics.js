@@ -14,8 +14,10 @@ function desktop(value) {
 }
 
 function diagnosticText(details = {}) {
+    const appIdentifier = ['whatsapp-personal', 'whatsapp-business-unofficial'].includes(details.appIdentifier)
+        ? details.appIdentifier : 'whatsapp-personal';
     return [
-        'WhatsApp Electron — unofficial Linux client',
+        appIdentifier === 'whatsapp-personal' ? 'WhatsApp Electron — unofficial Linux client' : `${appIdentifier} — unofficial Linux client`,
         `App: ${version(details.version)}`,
         `Electron: ${version(details.electron)}`,
         `Chromium: ${version(details.chrome)}`,
