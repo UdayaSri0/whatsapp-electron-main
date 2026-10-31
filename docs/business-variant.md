@@ -109,7 +109,7 @@ attach QR codes, messages, contacts, media, cookies, tokens or profile contents.
 
 | Platform check | Result |
 | --- | --- |
-| Ubuntu 26.10, GNOME Wayland | NOT RUN |
+| Ubuntu 26.10, GNOME Wayland package install/desktop behavior | NOT RUN (AppImage launch smoke only) |
 | X11 session where available | NOT RUN |
 | Ubuntu/Mint package install, upgrade, removal | NOT RUN |
 | KDE desktop integration | NOT RUN |
@@ -120,7 +120,7 @@ attach QR codes, messages, contacts, media, cookies, tokens or profile contents.
 | Tray, unread indicator, notifications, autostart | NOT RUN |
 | Microphone/camera denial and recovery | NOT RUN |
 | Incoming/outgoing voice and video calls, minimized | NOT RUN |
-| Actual simultaneous Personal + Business process launch | NOT RUN |
+| Simultaneous Personal + Business AppImage startup and profile separation | PASS (Ubuntu 26.10 GNOME Wayland; shared temporary XDG config root; environment selectors intentionally conflicted; both processes and separate profile directories observed; no account linked) |
 
 Automated tests cover identity selection, profile path separation, launcher and
 autostart filenames, security handlers, diagnostics redaction and package
