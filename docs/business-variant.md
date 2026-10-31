@@ -97,19 +97,24 @@ profiles untouched. It does not install or remove the packages.
 DEB and AppImage targets build on Linux x86_64. RPMs are optional and should be
 built as a matching pair. The build script writes per-variant/per-target
 `BUILD-METADATA.*.json` records containing the source commit and artifact SHA-256.
-`npm run release:assets` requires both variants' AppImage and DEB metadata,
-rejects missing/stale or mismatched packages, then generates the shared source
-archive and `SHA256SUMS`. It does not publish a GitHub release. A public Business
-binary release remains blocked pending authorization plus successful security,
-installation and supervised manual acceptance.
+`npm run release:assets -- --mode personal` prepares Personal-only assets.
+Dual assets require `--mode dual --business-distribution-authorized`, matching
+packages and provenance. The CLI flag is an intent check, not authorization;
+the GitHub dual-upload workflow also requires a protected environment and
+authorization secret. A public Business binary release remains blocked pending
+written authorization plus successful security, installation and supervised
+manual acceptance. See [release gates](release-readiness.md) and the
+[manual acceptance checklist](manual-acceptance.md).
 
 ## Manual acceptance status
 
+The [manual acceptance checklist](manual-acceptance.md) tracks both variants.
 No live account, real messaging, attachments, calls, notifications, graphical
 desktop or hardware acceptance was run for this variant during implementation.
-Record each result as PASS, FAIL, NOT RUN, BLOCKED or NOT AVAILABLE in the
-validation matrix. Test only with consenting accounts and participants; never
-attach QR codes, messages, contacts, media, cookies, tokens or profile contents.
+Record each result as PASS, FAIL, NOT RUN, BLOCKED or NOT AVAILABLE. Do not link
+real accounts until policy/legal review, any required authorization and the
+account owner's explicit approval are in place; never attach QR codes, messages,
+contacts, media, cookies, tokens or profile contents.
 
 | Platform check | Result |
 | --- | --- |

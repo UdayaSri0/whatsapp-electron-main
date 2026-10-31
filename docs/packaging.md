@@ -89,29 +89,53 @@ before field expansion. Paths with `=` or control characters are rejected; renam
 the executable before enabling integration. See the
 [desktop-entry specification](https://specifications.freedesktop.org/desktop-entry/latest/exec-variables.html).
 
-## CI and corresponding source
+## CI, candidate artifacts and release modes
 
 CI performs clean installs, static checks and tests on Node 22/24, then builds
-both variants' DEBs and AppImages and inspects the DEBs. It generates matching
-source, provenance and SHA-256 checksums. The manually dispatched candidate
-workflow additionally supports RPM. Neither publishes production releases.
-Temporary CI downloads are not permanent release assets.
+both variants' DEBs and AppImages, inspects their metadata and simulates install,
+upgrade and removal under a temporary root. CI uploads no packages. The manual
+candidate workflow requires an explicit `personal` or `dual` selection. Dual
+candidate uploads require the protected `business-distribution` environment
+and its authorization secret.
 
-For a release candidate, build from a clean committed tree with an empty `dist`,
-run `npm run build:all` (and `npm run build:rpm:all` when RPMs are wanted), then
-run `npm run release:assets`. The script requires Personal and Business AppImage
-and DEB artifacts with matching per-target provenance records. If RPMs are
-present, both RPMs must match. It checks package hashes and source commits,
-rejects missing or stale variants, archives HEAD, records `BUILD-COMMIT.txt` and
-hashes the source/packages. A dirty tree is rejected.
-Verify with `cd dist && sha256sum --check SHA256SUMS`. Do not pair stale binaries
-with a new source archive. Include LICENSE, NOTICE, corresponding wrapper source
-and the bundled Electron/Chromium notices. Redistributors must review all third-party
-source/license obligations separately.
+For a Personal-only candidate, build from a clean committed tree with an empty
+`dist`, run `npm run build:personal`, `npm run verify:packages:personal`, then
+`npm run release:assets -- --mode personal`. For dual assets, only after required
+authorization, run `npm run build:all`, then
+`npm run release:assets -- --mode dual --business-distribution-authorized`.
+If RPMs are wanted, build only the selected variant set: `npm run build:personal -- rpm` or `npm run build:rpm:all`. The script requires exact matching package
+and provenance files for the selected mode, rejects stale or unexpected variant
+packages, records the source commit and hashes the selected source/packages.
+Verify with `cd dist && sha256sum --check SHA256SUMS`.
 
-The Business binary is a local prototype and must not be publicly distributed
-without required WhatsApp/Meta authorization. `release:assets` prepares local
-assets only; it does not publish a GitHub release.
+The `Prepare gated draft release` workflow requires an existing version tag and
+creates a draft GitHub Release containing only the selected variant assets. It
+does not publish the draft; publication requires a separate maintainer action.
+Dual mode additionally requires a protected environment and authorization
+secret. Review [release gates](release-readiness.md) before any public release.
+Do not pair stale binaries with a new source archive. Include LICENSE, NOTICE,
+corresponding wrapper source and bundled Electron/Chromium notices. Review all
+third-party source/license obligations separately.
+
+The CLI flag is an intent check, not authorization. Business binaries must not
+be publicly distributed without the required WhatsApp/Meta authorization. The
+existing Personal wrapper is also unofficial; Personal-only mode does not
+establish policy compliance.
+
+## Safe package lifecycle checks
+
+`npm run test:packages` extracts DEB payloads only under a fresh temporary
+directory, overlays a synthetic higher-version package and simulates removal
+from that directory. It creates synthetic profile sentinels and verifies the
+other package and both sentinels remain. It never installs packages into the
+host, changes its package database or executes Debian maintainer scripts.
+`npm run verify:packages` statically checks those scripts for cross-variant and
+user-profile removal paths.
+
+Real package-manager installation, upgrade and removal still require a
+disposable VM/snapshot with a dedicated test user and temporary `XDG_CONFIG_HOME`.
+Restore the snapshot after each sequence. Never point this test at a real
+profile. See [manual acceptance](manual-acceptance.md) for the full checklist.
 
 ## Stable release gate
 
