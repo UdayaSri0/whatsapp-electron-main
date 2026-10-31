@@ -55,6 +55,28 @@ test('build targets never publish artifacts automatically', () => {
     assert.match(pkg.build.linux.desktop.entry.Name, /unofficial/i);
 });
 
+test('variant package builds refuse modified build inputs before loading builder tools', () => {
+    const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'whatsapp-build-input-test-'));
+    const git = args => execFileSync('git', args, { cwd: directory, stdio: 'pipe' });
+    try {
+        fs.mkdirSync(path.join(directory, 'scripts'));
+        fs.mkdirSync(path.join(directory, 'config'));
+        fs.mkdirSync(path.join(directory, 'src'));
+        fs.copyFileSync('scripts/build-variant.js', path.join(directory, 'scripts/build-variant.js'));
+        fs.copyFileSync('config/variants.js', path.join(directory, 'config/variants.js'));
+        fs.copyFileSync('package.json', path.join(directory, 'package.json'));
+        fs.writeFileSync(path.join(directory, 'src/main.js'), '/* source fixture */\n');
+        git(['init', '-q']);
+        git(['add', '.']);
+        git(['-c', 'user.name=Build Test', '-c', 'user.email=test@example.invalid', '-c', 'commit.gpgsign=false', 'commit', '-qm', 'Fixture source']);
+        fs.appendFileSync(path.join(directory, 'src/main.js'), '// uncommitted build change\n');
+        const result = spawnSync(process.execPath, [path.join(directory, 'scripts/build-variant.js'), 'business'], { cwd: directory, encoding: 'utf8' });
+        assert.notEqual(result.status, 0);
+        assert.match(result.stderr, /Commit build inputs before creating package artifacts/);
+        assert.doesNotMatch(result.stderr, /Cannot find module 'electron-builder'/);
+    } finally { fs.rmSync(directory, { recursive: true, force: true }); }
+});
+
 test('release assets archive committed source, verify checksums and reject modified sources', () => {
     const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'whatsapp-release-test-'));
     const git = args => execFileSync('git', args, { cwd: directory, stdio: 'pipe' });

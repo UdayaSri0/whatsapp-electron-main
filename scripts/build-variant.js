@@ -5,14 +5,18 @@ const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const { execFileSync } = require('node:child_process');
-const { Arch, Platform, build } = require('electron-builder');
 const { variants, buildConfig } = require('../config/variants');
+
+const projectDir = path.resolve(__dirname, '..');
+const changedInputs = execFileSync('git', ['status', '--porcelain', '--', 'src', 'config', 'build', 'package.json', 'package-lock.json', 'scripts', 'README.md', 'LICENSE', 'NOTICE'], { cwd: projectDir, encoding: 'utf8' }).trim();
+if (changedInputs) throw new Error('Commit build inputs before creating package artifacts.');
 
 const variant = variants[process.argv[2]];
 if (!variant) throw new Error('Choose personal or business');
 const targets = (process.argv[3] ? [process.argv[3]] : ['AppImage', 'deb']);
 if (targets.some(target => !['AppImage', 'deb', 'rpm'].includes(target))) throw new Error('Unsupported Linux target');
 
+const { Arch, Platform, build } = require('electron-builder');
 const config = buildConfig(variant.name);
 
 build({ targets: Platform.LINUX.createTarget(targets, Arch.x64), config, publish: 'never' })
