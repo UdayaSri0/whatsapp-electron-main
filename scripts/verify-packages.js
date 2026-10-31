@@ -27,9 +27,11 @@ function controlScript(packageFile) {
     } finally { fs.rmSync(directory, { recursive: true, force: true }); }
 }
 
-function verifyPackages() {
+function verifyPackages(mode = 'dual') {
+    if (!['personal', 'dual'].includes(mode)) throw new Error('Package verification mode must be personal or dual.');
     const version = pkg.version.replace(/-/g, '~');
-    const packages = Object.values(variants).map(variant => {
+    const selected = mode === 'personal' ? [variants.personal] : Object.values(variants);
+    const packages = selected.map(variant => {
         const filename = variant.artifactNames.deb.replace('${version}', pkg.version);
         const packageFile = path.resolve(pkg.build.directories.output, filename);
         const metadata = ['Package', 'Version', 'Architecture'].map(field =>
@@ -40,9 +42,21 @@ function verifyPackages() {
         if (!contents.includes(`./usr/share/applications/${variant.desktopFile}`)) throw new Error(`Missing isolated desktop launcher in ${filename}`);
         return { variant, packageFile, postrm: controlScript(packageFile) };
     });
-    assertRemovalIsolation(packages[0].postrm, packages[1].postrm);
-    console.log('DEB package names, desktop launchers and removal scripts are isolated; user profiles are preserved.');
+    for (const { variant, postrm } of packages) {
+        const other = Object.values(variants).find(candidate => candidate.name !== variant.name);
+        const ownExecutable = `/opt/${variant.productName}/${variant.executableName}`;
+        const otherExecutable = `/opt/${other.productName}/${other.executableName}`;
+        if (!postrm.includes(ownExecutable) || postrm.includes(otherExecutable) || /\/home\/|\.config\/|userData|user-data-dir/i.test(postrm)) {
+            throw new Error(`${variant.name} DEB removal script targets another application or user profile.`);
+        }
+    }
+    if (mode === 'dual') assertRemovalIsolation(packages[0].postrm, packages[1].postrm);
+    console.log(`${mode} DEB metadata, desktop launcher and removal isolation verified; user profiles are preserved.`);
 }
 
-if (require.main === module) verifyPackages();
+if (require.main === module) {
+    const args = process.argv.slice(2);
+    if (args.length && (args.length !== 2 || args[0] !== '--mode')) throw new Error('Usage: verify-packages.js [--mode personal|dual]');
+    verifyPackages(args[1] || 'dual');
+}
 module.exports = { assertRemovalIsolation, verifyPackages };

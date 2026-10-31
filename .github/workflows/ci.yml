@@ -35,19 +35,5 @@ jobs:
       - run: npm run build:all
       - name: Verify both Debian package identities and removal behavior
         run: npm run verify:packages
-      - run: npm run release:assets
-      - name: Verify candidate checksums
-        working-directory: dist
-        run: sha256sum --check SHA256SUMS
-      - uses: actions/upload-artifact@v4
-        with:
-          name: linux-candidate-validation
-          path: |
-            dist/*.deb
-            dist/*.AppImage
-            dist/*-source.tar.gz
-            dist/BUILD-COMMIT.txt
-            dist/BUILD-METADATA.*.json
-            dist/SHA256SUMS
-          if-no-files-found: error
-          retention-days: 7
+      - name: Simulate install, upgrade and removal in a temporary root
+        run: npm run test:packages
