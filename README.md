@@ -8,6 +8,24 @@ controls come from WhatsApp Web. This project is not affiliated with WhatsApp or
 following the inherited 1.1.1 version. It is not a verified stable calling release.
 No public production release has been published by this change.
 
+The repository builds two Linux applications from one shared main process:
+
+- **WhatsApp (unofficial)** keeps the existing `com.dluebben.whatsapp-desktop`
+  application ID, `whatsapp` executable, launcher identity and
+  `WhatsApp` Electron profile.
+- **Business Chat for WhatsApp (Unofficial)** is a separate local prototype with
+  its own package/executable, desktop identity and `WhatsApp-Business-Unofficial`
+  Electron profile. It loads the same `https://web.whatsapp.com/` entry point and
+  relies only on WhatsApp Web's linked-device behavior.
+
+> **Account and distribution warning:** WhatsApp's Help Center says linking an
+> account through unofficial apps or websites violates its Terms and may lead to
+> temporary or permanent account restrictions. This Business prototype is not
+> authorized or supported by WhatsApp/Meta. Build and use it only if you accept
+> that account risk. Public Business binary distribution is blocked pending
+> written permission; this repository does not publish a Business release.
+> See [Business variant and distribution limits](docs/business-variant.md).
+
 ## What is included
 
 - A sandboxed WhatsApp window with persistent login and window placement.
@@ -120,6 +138,23 @@ npm run check
 npm test
 npm start
 ```
+
+Variant commands:
+
+```bash
+npm run start:personal
+npm run start:business
+npm run build:personal   # Personal AppImage + DEB
+npm run build:business   # Business AppImage + DEB
+npm run build:all        # both applications, same source version
+npm run build:rpm:all    # optional matching RPMs when rpmbuild is available
+```
+
+The normal `npm start`, `npm run build`, `npm run build:deb` and related legacy
+commands continue to select Personal. A packaged app uses variant identity baked
+into its package; `WHATSAPP_VARIANT` only selects an unpackaged development run.
+Both profiles can run simultaneously. Uninstalling either package does not remove
+user profiles; desktop launchers and autostart entries have separate names.
 
 Build commands and release gates are in [packaging](docs/packaging.md).
 Development builds deliberately disable autostart so they do not create a login

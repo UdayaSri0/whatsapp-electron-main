@@ -12,6 +12,10 @@ your Linux home directory rather than on exFAT.
 npm ci
 npm run check
 npm test
+npm run build:personal # Personal AppImage and DEB
+npm run build:business # Business AppImage and DEB
+npm run build:all      # both variants from the same source version
+npm run build:rpm:all  # optional matching RPMs; requires rpmbuild
 npm run build:dir     # dist/linux-unpacked
 npm run build:deb     # Debian/Ubuntu package
 npm run build         # AppImage
@@ -22,6 +26,11 @@ npm run build:rpm     # RPM
 install distribution build prerequisites using your normal administration process.
 Build commands specify `--publish never`. They do not create production releases.
 Do not add sandbox-disabling flags to make a failing launch appear successful.
+
+Legacy build commands continue to select Personal. The variant commands package
+one shared `src/main.js` with variant-specific immutable metadata, executable,
+desktop identity, Linux package name and icon. See
+[Business variant](business-variant.md) for profile and distribution limits.
 
 `arch-pkg/PKGBUILD` wraps the existing directory output. Run `build:dir` first,
 then `makepkg` from `arch-pkg`; the Arch candidate version is `1.2.0rc1` because
@@ -83,18 +92,26 @@ the executable before enabling integration. See the
 ## CI and corresponding source
 
 CI performs clean installs, static checks and tests on Node 22/24, then builds
-directory, DEB and AppImage output and inspects the DEB. It generates matching
+both variants' DEBs and AppImages and inspects the DEBs. It generates matching
 source, provenance and SHA-256 checksums. The manually dispatched candidate
 workflow additionally supports RPM. Neither publishes production releases.
 Temporary CI downloads are not permanent release assets.
 
-For any distribution candidate, build from a clean committed tree with an empty
-`dist` and run `npm run release:assets` after the builds. The script archives HEAD,
-records it in BUILD-COMMIT.txt and hashes the binaries/source. A dirty tree is rejected.
+For a release candidate, build from a clean committed tree with an empty `dist`,
+run `npm run build:all` (and `npm run build:rpm:all` when RPMs are wanted), then
+run `npm run release:assets`. The script requires Personal and Business AppImage
+and DEB artifacts with matching per-target provenance records. If RPMs are
+present, both RPMs must match. It checks package hashes and source commits,
+rejects missing or stale variants, archives HEAD, records `BUILD-COMMIT.txt` and
+hashes the source/packages. A dirty tree is rejected.
 Verify with `cd dist && sha256sum --check SHA256SUMS`. Do not pair stale binaries
 with a new source archive. Include LICENSE, NOTICE, corresponding wrapper source
 and the bundled Electron/Chromium notices. Redistributors must review all third-party
 source/license obligations separately.
+
+The Business binary is a local prototype and must not be publicly distributed
+without required WhatsApp/Meta authorization. `release:assets` prepares local
+assets only; it does not publish a GitHub release.
 
 ## Stable release gate
 

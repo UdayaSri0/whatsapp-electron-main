@@ -6,6 +6,7 @@ for installation, account linking, desktop settings and troubleshooting.
 | Document | Purpose |
 | --- | --- |
 | [Packaging](packaging.md) | Build targets, desktop integration, artifact verification and release procedure |
+| [Business variant](business-variant.md) | Shared architecture, distinct identities, install/remove and distribution constraints |
 | [Security](security.md) | Trust boundaries, device controls and the capture limitation |
 | [Calling validation](calling-validation.md) | Real-account/device acceptance scenarios |
 | [Validation record](validation.md) | Executed commands, verified results and remaining gates |
