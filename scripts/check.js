@@ -13,7 +13,7 @@ function checkDirectory(directory) {
     }
 }
 
-for (const directory of ['src', 'scripts', 'test']) checkDirectory(directory);
+for (const directory of ['src', 'config', 'scripts', 'test']) checkDirectory(directory);
 for (const file of ['arch-pkg/PKGBUILD', 'arch-pkg/whatsapp.sh']) {
     execFileSync('bash', ['-n', file], { stdio: 'inherit' });
 }

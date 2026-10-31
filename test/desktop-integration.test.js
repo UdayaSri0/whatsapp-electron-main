@@ -6,6 +6,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { installDesktopShortcut } = require('../src/desktop-integration');
+const { variants } = require('../config/variants');
 
 function fixture(t) {
     const homeDir = fs.mkdtempSync(path.join(os.tmpdir(), 'whatsapp-desktop-'));
@@ -73,4 +74,15 @@ test('invalid AppImage paths create no shortcut files', t => {
         assert.throws(() => installDesktopShortcut({ ...options, appImagePath }), /Invalid/);
     }
     assert.deepEqual(fs.readdirSync(options.homeDir), ['source.png']);
+});
+
+test('AppImage shortcut identities are independent for both variants', t => {
+    const options = fixture(t);
+    const personal = installDesktopShortcut({ ...options, variant: variants.personal });
+    const business = installDesktopShortcut({ ...options, variant: variants.business });
+    assert.notEqual(personal.desktopFile, business.desktopFile);
+    assert.notEqual(personal.iconFile, business.iconFile);
+    const launcher = fs.readFileSync(business.desktopFile, 'utf8');
+    assert.match(launcher, /Name=Business Chat for WhatsApp \(Unofficial\)/);
+    assert.match(launcher, /StartupWMClass=com\.udayasri0\.business-chat-whatsapp-unofficial/);
 });

@@ -32,9 +32,7 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
-      - run: npm run build:dir
-      - run: npm run build:deb
-      - run: npm run build
+      - run: npm run build:all
       - name: Inspect Debian package contents
         run: |
           dpkg-deb --info dist/*.deb
@@ -51,6 +49,7 @@ jobs:
             dist/*.AppImage
             dist/*-source.tar.gz
             dist/BUILD-COMMIT.txt
+            dist/BUILD-METADATA.*.json
             dist/SHA256SUMS
           if-no-files-found: error
           retention-days: 7

@@ -10,6 +10,7 @@ const zlib = require('node:zlib');
 const { execFileSync, spawnSync } = require('node:child_process');
 const pkg = require('../package.json');
 const lock = require('../package-lock.json');
+const { variants } = require('../config/variants');
 
 test('packaging preserves profile identity and upstream authorship', () => {
     assert.equal(pkg.name, 'whatsapp-electron');
@@ -25,6 +26,8 @@ test('packaging preserves profile identity and upstream authorship', () => {
 
 test('all wrapper modules and GPL license are included in binary packages', () => {
     assert.ok(pkg.build.files.includes('src/**/*'));
+    assert.ok(pkg.build.files.includes('config/variants.js'));
+    assert.ok(pkg.build.files.includes('build/business/icon.png'));
     assert.ok(pkg.build.files.includes('LICENSE'));
     assert.ok(pkg.build.files.includes('NOTICE'));
     assert.match(fs.readFileSync('NOTICE', 'utf8'), /Dominik Lübben/);
@@ -41,8 +44,13 @@ test('manifest and lock agree on supported build runtime and dependencies', () =
 
 test('build targets never publish artifacts automatically', () => {
     for (const [name, command] of Object.entries(pkg.scripts)) {
-        if (name === 'build' || name.startsWith('build:')) assert.ok(command.includes('--publish never'), name);
+        if (name === 'build' || name.startsWith('build:')) {
+            if (command.includes('scripts/build-variant.js')) continue;
+            if (name === 'build:all') continue;
+            assert.ok(command.includes('--publish never'), name);
+        }
     }
+    assert.match(fs.readFileSync('scripts/build-variant.js', 'utf8'), /publish: 'never'/);
     assert.equal(pkg.build.linux.desktop.entry.StartupWMClass, 'WhatsApp');
     assert.match(pkg.build.linux.desktop.entry.Name, /unofficial/i);
 });
@@ -53,20 +61,39 @@ test('release assets archive committed source, verify checksums and reject modif
     try {
         fs.mkdirSync(path.join(directory, 'scripts'));
         fs.copyFileSync('scripts/release-assets.js', path.join(directory, 'scripts/release-assets.js'));
-        fs.writeFileSync(path.join(directory, 'package.json'), JSON.stringify({ version: '1.1.1' }));
+        fs.mkdirSync(path.join(directory, 'config'));
+        fs.copyFileSync('config/variants.js', path.join(directory, 'config/variants.js'));
+        fs.writeFileSync(path.join(directory, 'package.json'), JSON.stringify({
+            version: '1.1.1', build: { appId: 'com.example.personal', linux: { executableName: 'whatsapp', desktop: { entry: {} } }, appImage: {}, deb: {}, rpm: {} },
+        }));
         fs.writeFileSync(path.join(directory, 'LICENSE'), 'fixture GPL source license');
         fs.writeFileSync(path.join(directory, '.gitignore'), 'dist/\n');
         git(['init', '-q']);
         git(['add', '.']);
         git(['-c', 'user.name=Release Test', '-c', 'user.email=test@example.invalid', '-c', 'commit.gpgsign=false', 'commit', '-qm', 'Fixture source']);
         fs.mkdirSync(path.join(directory, 'dist'));
-        fs.writeFileSync(path.join(directory, 'dist', 'fixture.deb'), 'fixture binary');
+        const commit = git(['rev-parse', 'HEAD']).toString().trim();
+        for (const variant of Object.values(variants)) for (const target of ['AppImage', 'deb']) {
+            const artifact = variant.artifactNames[target === 'AppImage' ? 'appImage' : target].replace('${version}', '1.1.1');
+            const bytes = Buffer.from(`${variant.name} ${target}`);
+            fs.writeFileSync(path.join(directory, 'dist', artifact), bytes);
+            fs.writeFileSync(path.join(directory, `dist/BUILD-METADATA.${variant.name}.${target}.json`), JSON.stringify({
+                variant: variant.name, target, version: '1.1.1', commit, artifact,
+                sha256: crypto.createHash('sha256').update(bytes).digest('hex'),
+            }));
+        }
         const script = path.join(directory, 'scripts/release-assets.js');
+        const missing = path.join(directory, 'dist', variants.business.artifactNames.deb.replace('${version}', '1.1.1'));
+        fs.renameSync(missing, `${missing}.missing`);
+        const absent = spawnSync(process.execPath, [script], { cwd: directory, encoding: 'utf8' });
+        assert.notEqual(absent.status, 0);
+        assert.match(absent.stderr, /Missing business deb/);
+        fs.renameSync(`${missing}.missing`, missing);
         execFileSync(process.execPath, [script], { cwd: directory, stdio: 'pipe' });
         const dist = path.join(directory, 'dist');
         const archive = zlib.gunzipSync(fs.readFileSync(path.join(dist, 'whatsapp-electron-1.1.1-source.tar.gz')));
         assert.ok(archive.includes(Buffer.from('fixture GPL source license')));
-        assert.equal(fs.readFileSync(path.join(dist, 'BUILD-COMMIT.txt'), 'utf8').trim(), git(['rev-parse', 'HEAD']).toString().trim());
+        assert.equal(fs.readFileSync(path.join(dist, 'BUILD-COMMIT.txt'), 'utf8').trim(), commit);
         for (const line of fs.readFileSync(path.join(dist, 'SHA256SUMS'), 'utf8').trim().split('\n')) {
             const [hash, filename] = line.split('  ');
             assert.equal(crypto.createHash('sha256').update(fs.readFileSync(path.join(dist, filename))).digest('hex'), hash);

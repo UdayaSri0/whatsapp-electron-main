@@ -11,7 +11,7 @@ const vm = require('node:vm');
 const sourcePath = path.resolve(__dirname, '../src/main.js');
 const APP_URL = 'https://web.whatsapp.com/';
 
-async function boot({ prefs = {}, trayFailure = false, environment = {}, deferredReady = false, packaged = false, shortcutFailure = false, autostartFailure = false, dialogFailure = null, clipboardFailure = false } = {}) {
+async function boot({ prefs = {}, trayFailure = false, environment = {}, deferredReady = false, packaged = false, packagedVariant = 'personal', shortcutFailure = false, autostartFailure = false, dialogFailure = null, clipboardFailure = false } = {}) {
     let ready = !deferredReady;
     let resolveReady;
     const readyPromise = new Promise(resolve => { resolveReady = resolve; });
@@ -92,12 +92,13 @@ async function boot({ prefs = {}, trayFailure = false, environment = {}, deferre
         isDestroyed() { return false; }
         destroy() {}
     }
+    const paths = { appData: '/mock-config' };
     const app = Object.assign(new EventEmitter(), {
         userAgentFallback: 'WhatsApp/1 Electron/43 Chrome/150',
         commandLine: { appendSwitch() {} },
-        setName() {}, enableSandbox() { app.sandbox = true; },
+        setName(value) { app.name = value; }, setDesktopName(value) { app.desktopName = value; }, setPath(name, value) { paths[name] = value; }, enableSandbox() { app.sandbox = true; },
         isPackaged: packaged, getVersion: () => '1.2.0-rc.1',
-        getPath: () => '/mock-profile', requestSingleInstanceLock: () => true,
+        getPath: name => paths[name], requestSingleInstanceLock() { app.lockProfile = paths.userData; return true; },
         whenReady: () => readyPromise, isReady: () => ready,
         quit() { app.quitCount = (app.quitCount || 0) + 1; },
         setBadgeCount(value) { app.badge = value; },
@@ -142,6 +143,7 @@ async function boot({ prefs = {}, trayFailure = false, environment = {}, deferre
         const localRequire = name => {
             if (name === 'electron') return electron;
             if (name === 'node:fs') return mockFs;
+            if (name === '../package.json') return { ...require('../package.json'), whatsappVariant: packagedVariant };
             if (name === './autostart') return {
                 getAutostartStatus: () => ({ enabled: autostartEnabled }),
                 setAutostart(options) { if (autostartFailure) throw new Error('Existing launcher preserved'); autostartWrites.push(options); autostartEnabled = options.enabled; },
@@ -454,4 +456,24 @@ test('dialog and clipboard service failures are reported without throwing or rej
     window.emit('closed');
     assert.doesNotThrow(() => menuItem(runtime, 'Help', 'About').click());
     assert.equal(runtime.dialogs.at(-1).parent, null);
+});
+
+test('installed variants keep baked profile and window identity despite environment selection', async () => {
+    const personal = await boot({ packaged: true, packagedVariant: 'personal', environment: { WHATSAPP_VARIANT: 'business' } });
+    assert.equal(personal.app.getPath('userData'), '/mock-config/WhatsApp');
+    assert.equal(personal.app.lockProfile, '/mock-config/WhatsApp');
+    assert.equal(personal.app.name, 'WhatsApp');
+    assert.equal(personal.app.desktopName, 'whatsapp');
+    assert.equal(personal.windows[0].options.title, 'WhatsApp');
+
+    const business = await boot({ packaged: true, packagedVariant: 'business', environment: { WHATSAPP_VARIANT: 'personal' } });
+    assert.equal(business.app.getPath('userData'), '/mock-config/WhatsApp-Business-Unofficial');
+    assert.equal(business.app.lockProfile, '/mock-config/WhatsApp-Business-Unofficial');
+    assert.equal(business.app.name, 'Business Chat for WhatsApp (Unofficial)');
+    assert.equal(business.app.desktopName, 'com.udayasri0.business-chat-whatsapp-unofficial');
+    assert.equal(business.windows[0].options.title, 'Business Chat for WhatsApp (Unofficial)');
+    assert.equal(business.windows[0].webContents.userAgent, undefined);
+    assert.equal(business.session.headers, undefined);
+    menuItem(business, 'Help', 'Copy Diagnostics').click();
+    assert.match(business.copied[0], /whatsapp-business-unofficial/);
 });

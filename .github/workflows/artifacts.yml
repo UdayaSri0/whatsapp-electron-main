@@ -20,7 +20,8 @@ jobs:
       - run: npm ci
       - run: npm run check
       - run: npm test
-      - run: npm run build:linux
+      - run: npm run build:all
+      - run: npm run build:rpm:all
       - run: npm run release:assets
       - name: Verify checksums
         working-directory: dist
@@ -34,6 +35,7 @@ jobs:
             dist/*.rpm
             dist/*-source.tar.gz
             dist/BUILD-COMMIT.txt
+            dist/BUILD-METADATA.*.json
             dist/SHA256SUMS
           if-no-files-found: error
           retention-days: 14
