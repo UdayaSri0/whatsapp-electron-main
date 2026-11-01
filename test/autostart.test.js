@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
+const { variants } = require('../config/variants');
 const { getAutostartStatus, setAutostart } = require('../src/autostart');
 
 function fixture(t) {
@@ -93,4 +94,17 @@ test('autostart never overwrites a file appearing during initial enable', t => {
     } finally { fs.linkSync = originalLink; }
     assert.equal(fs.readFileSync(filename, 'utf8'), 'concurrent unrelated entry');
     assert.deepEqual(fs.readdirSync(path.dirname(filename)), ['whatsapp-electron.desktop']);
+});
+
+test('Personal and Business autostart entries can be enabled and removed independently', t => {
+    const options = fixture(t);
+    const personal = { ...options, variant: variants.personal };
+    const business = { ...options, variant: variants.business };
+    const personalFile = setAutostart({ ...personal, enabled: true }).filename;
+    const businessFile = setAutostart({ ...business, enabled: true }).filename;
+    assert.notEqual(personalFile, businessFile);
+    assert.match(fs.readFileSync(businessFile, 'utf8'), /Business Chat for WhatsApp/);
+    setAutostart({ ...business, enabled: false });
+    assert.equal(fs.existsSync(businessFile), false);
+    assert.equal(fs.existsSync(personalFile), true);
 });

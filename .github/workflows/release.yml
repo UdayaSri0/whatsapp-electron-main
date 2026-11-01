@@ -1,0 +1,88 @@
+name: Prepare gated draft release
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Existing tag whose version matches package.json, for example v1.3.0-beta.1
+        required: true
+        type: string
+      release_mode:
+        description: Choose Personal-only or the explicitly authorized dual-variant asset set
+        required: true
+        type: choice
+        options: [personal, dual]
+        default: personal
+
+permissions:
+  contents: write
+
+jobs:
+  draft-release:
+    if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    runs-on: ubuntu-24.04
+    environment:
+      name: ${{ inputs.release_mode == 'dual' && 'business-distribution' || 'personal-release' }}
+    env:
+      RELEASE_TAG: ${{ inputs.release_tag }}
+      RELEASE_MODE: ${{ inputs.release_mode }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.release_tag }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Validate tag and release notes
+        run: |
+          node -e 'const p=require("./package.json"); const tag=process.env.RELEASE_TAG; if (!/^v\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(tag) || tag !== `v${p.version}`) { console.error(`Tag must exactly match v${p.version}`); process.exit(1); }'
+          test -f "docs/releases/v$(node -p 'require("./package.json").version').md"
+      - name: Require explicit Business distribution authorization
+        if: inputs.release_mode == 'dual'
+        env:
+          BUSINESS_DISTRIBUTION_AUTHORIZED: ${{ secrets.BUSINESS_DISTRIBUTION_AUTHORIZED }}
+        run: test "$BUSINESS_DISTRIBUTION_AUTHORIZED" = "true"
+      - name: Install packaging prerequisites
+        run: sudo apt-get update && sudo apt-get install -y rpm
+      - run: npm ci
+      - run: npm run check
+      - run: npm test
+      - name: Build Personal-only packages
+        if: inputs.release_mode == 'personal'
+        run: |
+          npm run build:personal
+          npm run verify:packages:personal
+          npm run build:personal -- rpm
+          PACKAGE_VARIANT_MODE=personal npm run test:packages
+          npm run release:assets -- --mode personal
+      - name: Build dual-variant packages
+        if: inputs.release_mode == 'dual'
+        run: |
+          npm run build:all
+          npm run build:rpm:all
+          npm run test:packages
+          npm run release:assets -- --mode dual --business-distribution-authorized
+      - name: Verify artifact checksums
+        working-directory: dist
+        run: sha256sum --check SHA256SUMS
+      - name: Create a draft release for maintainer review
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version=$(node -p 'require("./package.json").version')
+          notes="docs/releases/v${version}.md"
+          target=$(git rev-parse HEAD)
+          shopt -s nullglob
+          if [[ "$RELEASE_MODE" == personal ]]; then
+            assets=(dist/WhatsApp-*.AppImage dist/whatsapp-electron-*.deb dist/whatsapp-electron-*.rpm)
+          else
+            assets=(dist/*.AppImage dist/*.deb dist/*.rpm)
+          fi
+          assets+=(dist/*-source.tar.gz dist/BUILD-COMMIT.txt dist/BUILD-METADATA.*.json dist/SHA256SUMS)
+          ((${#assets[@]} > 0))
+          release_flags=(--draft --title "$RELEASE_TAG" --notes-file "$notes" --target "$target")
+          if [[ "$version" == *-* ]]; then release_flags+=(--prerelease); fi
+          gh release create "$RELEASE_TAG" "${assets[@]}" "${release_flags[@]}"

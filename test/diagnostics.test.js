@@ -18,7 +18,7 @@ test('diagnostics accept only selected fields and suppress arbitrary environment
     const secret = 'private-token-/home/user/phone-number';
     const text = diagnosticText({ version: secret, electron: secret, chrome: secret, node: secret,
         platform: secret, arch: secret, sessionType: secret, desktop: secret, identityMode: secret,
-        profile: secret, url: secret, token: secret, logs: secret, env: { SECRET: secret } });
+        appIdentifier: secret, profile: secret, url: secret, token: secret, logs: secret, env: { SECRET: secret } });
     assert.equal(text.includes(secret), false);
     assert.ok(text.includes('Desktop: unknown'));
     assert.ok(text.includes('Microphone permission: disabled'));

@@ -7,12 +7,18 @@ const { desktopExecArgument } = require('./security');
 
 const HEADER = '[Desktop Entry]\nType=Application\nName=WhatsApp (unofficial)\nComment=Start WhatsApp desktop\nTerminal=false\nX-WhatsApp-Electron-Managed=1\n';
 
-function location({ homeDir, configDir }) {
+function location({ homeDir, configDir, variant = {} }) {
     const directory = configDir || (typeof homeDir === 'string' && path.join(homeDir, '.config'));
     if (!directory || !path.isAbsolute(directory) || /[\u0000-\u001f\u007f]/.test(directory)) {
         throw new Error('Invalid autostart configuration directory');
     }
-    return path.join(directory, 'autostart', 'whatsapp-electron.desktop');
+    return path.join(directory, 'autostart', variant.autostartFile || 'whatsapp-electron.desktop');
+}
+
+function header(variant) {
+    return variant && variant.name !== 'personal'
+        ? `[Desktop Entry]\nType=Application\nName=${variant.productName}\nComment=Start ${variant.productName}\nTerminal=false\nX-WhatsApp-Electron-Managed=1\n`
+        : HEADER;
 }
 
 function content(options) {
@@ -21,10 +27,11 @@ function content(options) {
     if (!argument || !path.isAbsolute(executable)) throw new Error('Invalid autostart executable path');
     const command = `Exec=${executable.includes('%') ? '/usr/bin/env -- ' : ''}${argument}\n`;
     const digest = crypto.createHash('sha256').update(command).digest('hex');
-    return `${HEADER}${command}X-WhatsApp-Electron-Checksum=${digest}\n`;
+    const entryHeader = header(options.variant);
+    return `${entryHeader}${command}X-WhatsApp-Electron-Checksum=${digest}\n`;
 }
 
-function inspect(filename) {
+function inspect(filename, variant) {
     let stat;
     try { stat = fs.lstatSync(filename); }
     catch (error) { if (error.code === 'ENOENT') return null; throw error; }
@@ -36,7 +43,8 @@ function inspect(filename) {
             throw new Error('Existing autostart entry changed or is too large');
         }
         const bytes = fs.readFileSync(descriptor, 'utf8');
-        const suffix = bytes.startsWith(HEADER) ? bytes.slice(HEADER.length) : '';
+        const entryHeader = header(variant);
+        const suffix = bytes.startsWith(entryHeader) ? bytes.slice(entryHeader.length) : '';
         const match = /^(Exec=[^\r\n]+\n)X-WhatsApp-Electron-Checksum=([a-f0-9]{64})\n$/.exec(suffix);
         if (!match || crypto.createHash('sha256').update(match[1]).digest('hex') !== match[2]) {
             throw new Error('Existing or modified autostart entry preserved');
@@ -45,15 +53,15 @@ function inspect(filename) {
     } finally { fs.closeSync(descriptor); }
 }
 
-function unchanged(filename, entry) {
+function unchanged(filename, entry, variant) {
     const current = fs.lstatSync(filename);
     if (current.ino !== entry.stat.ino || current.dev !== entry.stat.dev || !current.isFile() ||
-        inspect(filename).bytes !== entry.bytes) throw new Error('Autostart entry changed concurrently');
+        inspect(filename, variant).bytes !== entry.bytes) throw new Error('Autostart entry changed concurrently');
 }
 
 function getAutostartStatus(options) {
     const filename = location(options);
-    return { enabled: Boolean(inspect(filename)), filename };
+    return { enabled: Boolean(inspect(filename, options.variant)), filename };
 }
 
 // Called only after an explicit user action. The checksum detects edited entries;
@@ -62,20 +70,20 @@ function setAutostart(options) {
     if (typeof options.enabled !== 'boolean') throw new Error('Autostart enabled must be a boolean');
     const filename = location(options);
     const desired = options.enabled ? content(options) : null;
-    if (!options.enabled && !inspect(filename)) return { enabled: false, filename };
+    if (!options.enabled && !inspect(filename, options.variant)) return { enabled: false, filename };
     fs.mkdirSync(path.dirname(filename), { recursive: true, mode: 0o700 });
     const lock = `${filename}.lock`;
     const descriptor = fs.openSync(lock, 'wx', 0o600);
     let temporary;
     try {
-        const existing = inspect(filename);
+        const existing = inspect(filename, options.variant);
         if (!options.enabled) {
-            if (existing) { unchanged(filename, existing); fs.unlinkSync(filename); }
+            if (existing) { unchanged(filename, existing, options.variant); fs.unlinkSync(filename); }
         } else if (existing?.bytes !== desired) {
             temporary = `${filename}.${crypto.randomBytes(12).toString('hex')}.tmp`;
             fs.writeFileSync(temporary, desired, { flag: 'wx', mode: 0o600 });
             if (existing) {
-                unchanged(filename, existing);
+                unchanged(filename, existing, options.variant);
                 fs.renameSync(temporary, filename);
             } else {
                 // Unlike rename, link refuses to overwrite a concurrent entry.

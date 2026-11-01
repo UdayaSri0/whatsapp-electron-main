@@ -8,6 +8,25 @@ controls come from WhatsApp Web. This project is not affiliated with WhatsApp or
 following the inherited 1.1.1 version. It is not a verified stable calling release.
 No public production release has been published by this change.
 
+The repository builds two Linux applications from one shared main process:
+
+- **WhatsApp (unofficial)** keeps the existing `com.dluebben.whatsapp-desktop`
+  application ID, `whatsapp` executable, launcher identity and
+  `WhatsApp` Electron profile.
+- **Business Chat for WhatsApp (Unofficial)** is a separate local prototype with
+  its own package/executable, desktop identity and `WhatsApp-Business-Unofficial`
+  Electron profile. It loads the same `https://web.whatsapp.com/` entry point and
+  relies only on WhatsApp Web's linked-device behavior.
+
+> **Account and distribution warning:** This wrapper is third-party software,
+> including when it displays official WhatsApp Web content. WhatsApp warns that
+> linking accounts through unofficial apps or websites is unsupported and may
+> risk account restrictions. This applies to Personal and Business variants.
+> Do not link a real account until policy/legal review and any required written
+> authorization are complete, and the account owner explicitly approves the test.
+> Public Business binary distribution is blocked pending written authorization.
+> See [release gates](docs/release-readiness.md).
+
 ## What is included
 
 - A sandboxed WhatsApp window with persistent login and window placement.
@@ -53,8 +72,11 @@ RPM/Arch notes, upgrades and removal. Never use `--no-sandbox` as an installatio
 ## Link your account and use chats
 
 1. Open the application and wait for WhatsApp Web to load.
-2. On your phone, open WhatsApp's **Linked devices** and link the displayed QR code.
-3. Use WhatsApp's own chat list, messages, attachments and call controls.
+2. Link an account only after reading the policy warning above and completing
+   the authorization and explicit account-owner approval described in
+   [release gates](docs/release-readiness.md).
+3. If authorized, use WhatsApp's **Linked devices** flow and its own chat list,
+   messages, attachments and call controls.
 
 Existing linked sessions use the same `WhatsApp` profile as before. Reloading or
 upgrading does not intentionally clear it. Logging out through WhatsApp unlinks
@@ -121,7 +143,26 @@ npm test
 npm start
 ```
 
-Build commands and release gates are in [packaging](docs/packaging.md).
+Variant commands:
+
+```bash
+npm run start:personal
+npm run start:business
+npm run build:personal   # Personal AppImage + DEB
+npm run build:business   # Business AppImage + DEB
+npm run build:all        # both applications, same source version
+npm run build:rpm:all    # optional matching RPMs when rpmbuild is available
+```
+
+The normal `npm start`, `npm run build`, `npm run build:deb` and related legacy
+commands continue to select Personal. A packaged app uses variant identity baked
+into its package; `WHATSAPP_VARIANT` only selects an unpackaged development run.
+Both profiles can run simultaneously. Uninstalling either package does not remove
+user profiles; desktop launchers and autostart entries have separate names.
+
+Build commands and release gates are in [packaging](docs/packaging.md). The
+[manual acceptance checklist](docs/manual-acceptance.md) covers both variants;
+its account-based checks remain blocked until policy clearance and approval.
 Development builds deliberately disable autostart so they do not create a login
 entry for the Electron development runner.
 

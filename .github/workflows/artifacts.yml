@@ -1,14 +1,26 @@
-name: Candidate Linux artifacts (no publishing)
+name: Candidate Linux artifacts (manual, gated)
 
 on:
   workflow_dispatch:
+    inputs:
+      release_mode:
+        description: Select which variants may be uploaded as a temporary candidate artifact
+        required: true
+        type: choice
+        options: [personal, dual]
+        default: personal
 
 permissions:
   contents: read
 
 jobs:
   candidate:
+    if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
     runs-on: ubuntu-24.04
+    environment:
+      name: ${{ inputs.release_mode == 'dual' && 'business-distribution' || 'personal-candidate' }}
+    env:
+      RELEASE_MODE: ${{ inputs.release_mode }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -17,23 +29,57 @@ jobs:
           cache: npm
       - name: Install packaging prerequisites
         run: sudo apt-get update && sudo apt-get install -y rpm
+      - name: Require explicit Business distribution authorization
+        if: inputs.release_mode == 'dual'
+        env:
+          BUSINESS_DISTRIBUTION_AUTHORIZED: ${{ secrets.BUSINESS_DISTRIBUTION_AUTHORIZED }}
+        run: test "$BUSINESS_DISTRIBUTION_AUTHORIZED" = "true"
       - run: npm ci
       - run: npm run check
       - run: npm test
-      - run: npm run build:linux
-      - run: npm run release:assets
+      - name: Build and verify Personal-only candidate
+        if: inputs.release_mode == 'personal'
+        run: |
+          npm run build:personal
+          npm run verify:packages:personal
+          npm run build:personal -- rpm
+          PACKAGE_VARIANT_MODE=personal npm run test:packages
+          npm run release:assets -- --mode personal
+      - name: Build and verify dual-variant candidate
+        if: inputs.release_mode == 'dual'
+        run: |
+          npm run build:all
+          npm run build:rpm:all
+          npm run test:packages
+          npm run release:assets -- --mode dual --business-distribution-authorized
       - name: Verify checksums
         working-directory: dist
         run: sha256sum --check SHA256SUMS
       - uses: actions/upload-artifact@v4
+        if: inputs.release_mode == 'personal'
         with:
-          name: linux-candidate-${{ github.sha }}
+          name: linux-candidate-personal-${{ github.sha }}
+          path: |
+            dist/WhatsApp-*.AppImage
+            dist/whatsapp-electron-*.deb
+            dist/whatsapp-electron-*.rpm
+            dist/whatsapp-electron-*-source.tar.gz
+            dist/BUILD-COMMIT.txt
+            dist/BUILD-METADATA.personal.*.json
+            dist/SHA256SUMS
+          if-no-files-found: error
+          retention-days: 7
+      - uses: actions/upload-artifact@v4
+        if: inputs.release_mode == 'dual'
+        with:
+          name: linux-candidate-dual-${{ github.sha }}
           path: |
             dist/*.AppImage
             dist/*.deb
             dist/*.rpm
             dist/*-source.tar.gz
             dist/BUILD-COMMIT.txt
+            dist/BUILD-METADATA.*.json
             dist/SHA256SUMS
           if-no-files-found: error
-          retention-days: 14
+          retention-days: 7
