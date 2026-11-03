@@ -14,7 +14,7 @@ on `origin/main` at `c9d8601075ccf6e1183423e41f3b4a3226e0bc32`. The public
 | `npm run verify:packages` | PASS | DEB package identities, desktop launchers, removal isolation, and profile preservation verified |
 | `npm run test:packages` | PASS | Both DEB payloads installed, upgraded, and removed in a temporary root; profile sentinels preserved |
 | `npm audit` | FAIL | 15 moderate, 0 high/critical; all trace to GHSA-g3hv-75wg-m249; see [dependency review](security-audit-stable-update.md) |
-| GitHub CI | NOT RUN | Draft pull request and push are pending final local verification |
+| GitHub CI | PASS | Draft PR #7: Node 22, Node 24, and package build plus DEB lifecycle jobs passed on commit `956b53352bf61d8593f6b9a735406070bc32b03d`; documentation-only follow-up will rerun CI |
 
 The pre-build skip was `dual DEB install, upgrade and removal simulation stays
 inside a temporary root`. It skipped because the expected DEBs did not exist
