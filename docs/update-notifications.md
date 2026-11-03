@@ -3,8 +3,9 @@
 Use **Help → Check for Updates** for a manual check. The app requests the
 public GitHub Releases API for `UdayaSri0/whatsapp-electron-main` over HTTPS,
 with a short timeout and redirects disabled. It compares versions using
-SemVer precedence, including prerelease identifiers and build metadata, and
-only recognizes an exact artifact name defined for the installed variant.
+SemVer precedence, including prerelease identifiers; build metadata does not
+change precedence and is retained in valid release links. It only recognizes
+an exact artifact name defined for the installed variant.
 Drafts and releases without a matching package are ignored. The release page
 link is constructed for this repository and opened through the app's existing
 external-link policy.

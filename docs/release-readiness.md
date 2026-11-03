@@ -2,12 +2,15 @@
 
 ## Current status
 
-Current package version: `1.2.0-rc.1`. The repository already has a public
+Current package version: `1.2.0-rc.2`. The repository already has a public
 Personal-only prerelease, `v1.2.0-rc.1` (published 2026-10-23), with Personal
 DEB, AppImage and RPM assets. It predates PR #6; this change has not modified
 that release. No stable release or Business binary is present, and no
 WhatsApp/Meta authorization is recorded. The new workflow prepares a **draft**
 only; a maintainer must review and manually publish it.
+
+Current branch test, dependency and package evidence is recorded in
+[stable update validation](stable-update-validation.md).
 
 | Requirement | Status | Evidence / next action |
 | --- | --- | --- |
@@ -17,6 +20,8 @@ only; a maintainer must review and manually publish it.
 | Personal-only asset mode | PASS | `npm run release:assets -- --mode personal` requires only Personal packages and rejects Business packages/provenance in `dist/` |
 | Dual-variant asset mode requires explicit selection | PASS | `--mode dual` requires `--business-distribution-authorized`; workflow additionally requires a protected environment secret |
 | Routine pull-request CI uploads binaries | PASS | CI builds and validates packages but uploads no artifacts |
+| Manual update notifications | PASS | Fixed GitHub API endpoint, SemVer comparison, exact Personal asset names, opt-in daily checks default off; Business checks are restricted |
+| Dependency audit | BLOCKED | 15 moderate development-tree records remain for GHSA-g3hv-75wg-m249; see [dependency review](security-audit-stable-update.md) |
 | Public publication policy clearance for Personal wrapper | BLOCKED | Official policy review/legal advice required; being the existing Personal app does not establish third-party client support |
 | Public Business distribution authorization | BLOCKED | No written WhatsApp/Meta authorization; keep `BUSINESS_DISTRIBUTION_AUTHORIZED` environment secret unset |
 | Historical Personal QR/login/text checks | BLOCKED | Issue #5 has these boxes checked, while the published RC notes say they were NOT verified; reconcile the evidence before treating them as PASS |
@@ -93,6 +98,9 @@ that environment in GitHub settings; repository workflow files cannot enforce
 an environment's reviewer configuration by themselves. The manual candidate
 workflow uses the same gate before uploading temporary Actions artifacts. CI
 never uploads package artifacts.
+
+The next candidate is `1.2.0-rc.2`; `v1.2.0-rc.1` and its assets remain
+unchanged. This version bump does not create a tag or authorize a release.
 
 To prepare assets locally from a clean committed tree:
 

@@ -29,6 +29,7 @@ this checklist.
 | Outgoing/incoming voice and video calls | BLOCKED | BLOCKED | Test microphone/camera, two-way audio/video and call teardown |
 | Deny and re-enable microphone/camera permissions | NOT RUN | NOT RUN | Device permission UX may be checked without account; call recovery is BLOCKED |
 | Disconnect network and recover | NOT RUN | NOT RUN | Local reconnect behavior may be checked signed out; message continuity is BLOCKED |
+| Help → Check for Updates and opt-in setting | NOT RUN | NOT RUN | Verify offline/rate-limit messaging, Personal asset match, Business restriction, and that automatic checks stay off until enabled; do not install from the prompt |
 | Install both DEBs together; verify launcher and package identities | NOT RUN | NOT RUN | Disposable VM only; no host package database changes |
 | Upgrade each package over an older build | NOT RUN | NOT RUN | Snapshot rollback; verify package paths and test profile sentinel survive |
 | Remove one package while the other remains installed | NOT RUN | NOT RUN | Snapshot rollback; verify the other launcher and profile sentinel survive |

@@ -1,5 +1,9 @@
 # Release candidate validation
 
+This is the historical validation record for `1.2.0-rc.1`. Current Electron,
+dependency audit, notification, and package verification evidence for the next
+candidate is maintained in [stable update validation](stable-update-validation.md).
+
 Candidate: **1.2.0-rc.1**, dated 2026-10-23. Owner/maintainer: UdayaSri0.
 Current main: `83be73708c01414e363f49c3421ccabbd7abde26`, containing merged PR #2.
 This is a release candidate, not production acceptance. No stable release is

@@ -10,8 +10,11 @@ for installation, account linking, desktop settings and troubleshooting.
 | [Release readiness](release-readiness.md) | Personal-only and dual-variant release gates, policy and licensing status |
 | [Manual acceptance](manual-acceptance.md) | Safe two-variant login, messaging, call, recovery and package checklist |
 | [Security](security.md) | Trust boundaries, device controls and the capture limitation |
+| [Update notifications](update-notifications.md) | GitHub release checks, opt-in schedule, package installation and limits |
+| [Dependency security review](security-audit-stable-update.md) | npm audit findings and remediation decisions for this candidate |
 | [Calling validation](calling-validation.md) | Real-account/device acceptance scenarios |
 | [Validation record](validation.md) | Executed commands, verified results and remaining gates |
+| [Stable update validation](stable-update-validation.md) | Current dependency, test, build and provenance evidence for this branch |
 | [Historical foundation audit](technical-audit.md) | Findings against the inherited 1.1.1 baseline |
 | [Changelog](../CHANGELOG.md) | Candidate changes and inherited version history |
 | [Attribution](../NOTICE) | Ownership, original authorship and redistribution notices |

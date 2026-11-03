@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.2.0-rc.2 — stable update hardening candidate (2026-11-04)
+
+- Update Electron from 43.7.0 to 43.8.6 and electron-builder from 26.15.3 to
+  26.18.1 while retaining Electron 43 and the existing hardened runtime.
+- Add **Help → Check for Updates** using the fixed GitHub Releases API, strict
+  semantic-version ordering and exact Personal release assets. No package is
+  downloaded or installed by the application.
+- Add optional daily checks, disabled for existing and new profiles by default.
+  Business update notices stay closed while public distribution is unauthorized.
+- Document the remaining minimatch advisory across the development packaging
+  dependency tree; preserve original author credit, GPL notices and identities.
+- Release, account, package-manager and call acceptance remain pending review;
+  this candidate does not publish or authorize Business binaries.
+
 ## 1.2.0-rc.1 — first fork candidate (2026-10-23)
 
 - Add visible native application menus, editing shortcuts, zoom/fullscreen,

@@ -94,3 +94,23 @@ screen capture. The application continues to deny display capture at the shared
 permission boundary until an unambiguous explicit-selection path is verified.
 A post-update audit and real installation/build evidence must be recorded in the
 validation report; this decision does not claim zero remaining vulnerabilities.
+
+## Stable update hardening — 2026-11-04
+
+The next candidate pins Electron **43.8.6** and electron-builder **26.18.1**.
+Electron 43.8.6 is the latest published 43.x package available at review time.
+Its [release notes](https://github.com/electron/electron/releases/tag/v43.8.6)
+record upstream ANGLE, Chromium, libaom, libvpx, PDFium, Skia, V8 and WebRTC
+backports. Electron's [43.8.6 permission helper](https://github.com/electron/electron/blob/v43.8.6/shell/browser/web_contents_permission_helper.cc)
+retains the device/desktop request separation used in the screen-sharing review;
+the paired [permission manager](https://github.com/electron/electron/blob/v43.8.6/shell/browser/electron_permission_manager.cc)
+is unchanged from 43.7.0. The web-contents helper also improves attribution of
+pointer/keyboard lock requests to their requesting frame. Screen sharing remains
+blocked; this source review does not establish behavior on live hardware.
+
+The [electron-builder 26.18.1 release](https://github.com/electron-userland/electron-builder/releases)
+is a same-major patch update. It updates `app-builder-lib`, `builder-util`,
+`dmg-builder` and `builder-util-runtime`; the current package tree still has the
+minimatch advisory described in [the dependency review](security-audit-stable-update.md).
+The full updated audit and executed checks are in
+[stable update validation](stable-update-validation.md).
