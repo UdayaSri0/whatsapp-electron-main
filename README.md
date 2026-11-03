@@ -4,9 +4,9 @@ An unofficial WhatsApp Web desktop application, owned and maintained as a fork b
 [UdayaSri0](https://github.com/UdayaSri0). Messaging, account linking and call
 controls come from WhatsApp Web. This project is not affiliated with WhatsApp or Meta.
 
-**Current candidate: 1.2.0-rc.1.** This is the first release candidate of this fork,
-following the inherited 1.1.1 version. It is not a verified stable calling release.
-No public production release has been published by this change.
+**Next candidate: 1.2.0-rc.2.** The existing public release `v1.2.0-rc.1` is
+unchanged. This branch prepares a new candidate; it is not a verified stable
+calling release and does not publish any release.
 
 The repository builds two Linux applications from one shared main process:
 
@@ -35,6 +35,7 @@ The repository builds two Linux applications from one shared main process:
 - Separate microphone and camera switches in Settings.
 - Opt-in startup at login and AppImage desktop shortcuts.
 - Native About and Copy Diagnostics actions for support.
+- Manual GitHub release checks; optional daily checks are off until enabled in Settings.
 - Linux x86_64 directory, DEB, AppImage and RPM build targets.
 
 Calls depend on the WhatsApp Web feature rollout, account and devices. Actual
@@ -55,14 +56,14 @@ for this candidate. CI artifacts expire; no stable download is promised yet.
 For Ubuntu/Mint, install the generated DEB with your normal package manager:
 
 ```bash
-sudo apt install ./whatsapp-electron-1.2.0-rc.1-amd64.deb
+sudo apt install ./whatsapp-electron-1.2.0-rc.2-amd64.deb
 ```
 
 Start **WhatsApp (unofficial)** from the application launcher. For an AppImage:
 
 ```bash
-chmod +x WhatsApp-1.2.0-rc.1-x86_64.AppImage
-./WhatsApp-1.2.0-rc.1-x86_64.AppImage
+chmod +x WhatsApp-1.2.0-rc.2-x86_64.AppImage
+./WhatsApp-1.2.0-rc.2-x86_64.AppImage
 ```
 
 Your system must support AppImage execution and Electron sandboxing. See
@@ -108,6 +109,15 @@ For AppImages, move the file to its permanent location first, then select
 See [desktop integration](docs/packaging.md#desktop-integration) for exact paths
 and reversible removal instructions.
 
+## Update notifications
+
+Use **Help → Check for Updates** to look for a newer release that contains a
+Personal package. The app opens only this fork's GitHub release page; it never
+downloads or installs a package. Optional daily checks are off by default and
+can be enabled in **Settings → Automatically check for updates**. Business
+update notices remain disabled while public Business distribution is
+unauthorized. See [update notifications](docs/update-notifications.md).
+
 ## Troubleshooting
 
 - **Blank/offline page:** use **File → Reload** (`Ctrl+R`); check network access to
@@ -136,7 +146,7 @@ requires symlinks; an exFAT checkout is unsuitable.
 ```bash
 git clone https://github.com/UdayaSri0/whatsapp-electron-main.git
 cd whatsapp-electron-main
-git checkout v1.2.0-rc.1  # exact published candidate, when available
+git checkout v1.2.0-rc.2  # exact reviewed candidate tag, when available
 npm ci
 npm run check
 npm test
@@ -173,7 +183,8 @@ release; screen sharing is intentionally blocked.
 ## Project records and licensing
 
 [Documentation index](docs/README.md) · [Changelog](CHANGELOG.md) ·
-[Security boundaries](docs/security.md) · [Validation](docs/validation.md)
+[Security boundaries](docs/security.md) · [Dependency security review](docs/security-audit-stable-update.md) ·
+[Update notifications](docs/update-notifications.md) · [Validation](docs/validation.md)
 
 Owner and maintainer: **UdayaSri0**. Wrapper source: **GPL-2.0-or-later**.
 Original authorship, dependency notices and trademark information are preserved

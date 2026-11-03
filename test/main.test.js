@@ -11,7 +11,7 @@ const vm = require('node:vm');
 const sourcePath = path.resolve(__dirname, '../src/main.js');
 const APP_URL = 'https://web.whatsapp.com/';
 
-async function boot({ prefs = {}, trayFailure = false, environment = {}, deferredReady = false, packaged = false, packagedVariant = 'personal', shortcutFailure = false, autostartFailure = false, dialogFailure = null, clipboardFailure = false } = {}) {
+async function boot({ prefs = {}, trayFailure = false, environment = {}, deferredReady = false, packaged = false, packagedVariant = 'personal', shortcutFailure = false, autostartFailure = false, dialogFailure = null, clipboardFailure = false, dialogResponse = 1, updateResult = { status: 'current' } } = {}) {
     let ready = !deferredReady;
     let resolveReady;
     const readyPromise = new Promise(resolve => { resolveReady = resolve; });
@@ -24,6 +24,7 @@ async function boot({ prefs = {}, trayFailure = false, environment = {}, deferre
     const copied = [];
     const warnings = [];
     const autostartWrites = [];
+    const updateRequests = [];
     let autostartEnabled = false;
     const session = {
         webRequest: { onBeforeSendHeaders(_filter, callback) { session.headers = callback; } },
@@ -116,7 +117,7 @@ async function boot({ prefs = {}, trayFailure = false, environment = {}, deferre
             dialogs.push({ ...args.at(-1), parent: args.length === 2 ? args[0] : null });
             if (dialogFailure === 'sync') throw new Error('Dialog unavailable');
             if (dialogFailure === 'async') return Promise.reject(new Error('Dialog unavailable'));
-            return Promise.resolve({ response: 1 });
+            return Promise.resolve({ response: dialogResponse });
         } },
     };
     const mockFs = {
@@ -152,6 +153,7 @@ async function boot({ prefs = {}, trayFailure = false, environment = {}, deferre
                 if (shortcutFailure) throw new Error('Existing shortcut preserved');
                 return { desktopFile: '/mock-home/.local/share/applications/whatsapp.desktop' };
             } };
+            if (name === './update-check') return { checkForUpdate(options) { updateRequests.push(options); return Promise.resolve(updateResult); } };
             return name.startsWith('.')
                 ? loadModule(require.resolve(path.resolve(path.dirname(filename), name)))
                 : require(name);
@@ -164,7 +166,7 @@ async function boot({ prefs = {}, trayFailure = false, environment = {}, deferre
     await Promise.resolve();
     await Promise.resolve();
     return {
-        app, session, windows, timers, opened, writes, dialogs, copied, autostartWrites, warnings,
+        app, session, windows, timers, opened, writes, dialogs, copied, autostartWrites, updateRequests, warnings,
         async ready() {
             ready = true;
             resolveReady();
@@ -399,6 +401,45 @@ test('native menus remain accessible without tray and preserve editing shortcuts
     assert.equal(runtime.copied.length, 1);
     assert.match(runtime.copied[0], /1\.2\.0-rc\.1/);
     assert.doesNotMatch(runtime.copied[0], /mock-profile/);
+});
+
+test('Help menu offers a manual update check without checking by default', async () => {
+    const runtime = await boot();
+    const help = runtime.app.menu.find(item => item.label === 'Help').submenu;
+    const check = help.find(item => item.label === 'Check for Updates');
+    assert.ok(check);
+    assert.equal(runtime.updateRequests.length, 0);
+    await check.click();
+    assert.equal(runtime.updateRequests.length, 1);
+    assert.equal(runtime.updateRequests[0].currentVersion, '1.2.0-rc.1');
+    assert.equal(runtime.updateRequests[0].variant.name, 'personal');
+    assert.match(runtime.dialogs.at(-1).message, /latest matching release/i);
+});
+
+test('update notice opens only the trusted release page through the external-link policy', async () => {
+    const releaseUrl = 'https://github.com/UdayaSri0/whatsapp-electron-main/releases/tag/v1.3.0';
+    const runtime = await boot({ dialogResponse: 0, updateResult: { status: 'available', version: '1.3.0', releaseUrl } });
+    await menuItem(runtime, 'Help', 'Check for Updates').click();
+    assert.deepEqual(runtime.opened, [releaseUrl]);
+});
+
+test('Business keeps the manual Help check but has no automatic package-check setting', async () => {
+    const runtime = await boot({ packaged: true, packagedVariant: 'business', updateResult: { status: 'restricted' } });
+    assert.equal(menuItem(runtime, 'Settings', 'Automatically check for updates').visible, false);
+    await menuItem(runtime, 'Help', 'Check for Updates').click();
+    assert.equal(runtime.updateRequests[0].variant.name, 'business');
+    assert.match(runtime.dialogs.at(-1).message, /distribution is unauthorized/i);
+});
+
+test('automatic update checks stay off until the setting is deliberately enabled', async () => {
+    const runtime = await boot();
+    const setting = menuItem(runtime, 'Settings', 'Automatically check for updates');
+    assert.equal(setting.checked, false);
+    assert.equal(runtime.updateRequests.length, 0);
+    setting.click({ checked: true });
+    assert.equal(JSON.parse(runtime.writes.at(-1)[1]).automaticUpdateChecks, true);
+    assert.equal(runtime.updateRequests.length, 1);
+    assert.ok([...runtime.timers].some(timer => timer.delay === 86400000));
 });
 
 test('media controls persist, update live permission policy and reload active streams', async () => {
