@@ -2,7 +2,7 @@
   "name": "whatsapp-electron",
   "productName": "WhatsApp",
   "whatsappVariant": "personal",
-  "version": "1.2.0-rc.1",
+  "version": "1.2.0-rc.2",
   "description": "Unofficial WhatsApp Web desktop wrapper for Linux",
   "author": {
     "name": "UdayaSri0",
@@ -52,8 +52,8 @@
     "release:assets": "node scripts/release-assets.js"
   },
   "devDependencies": {
-    "electron": "43.7.0",
-    "electron-builder": "26.15.3"
+    "electron": "43.8.6",
+    "electron-builder": "26.18.1"
   },
   "build": {
     "appId": "com.dluebben.whatsapp-desktop",
