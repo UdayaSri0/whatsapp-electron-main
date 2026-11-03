@@ -423,6 +423,13 @@ test('update notice opens only the trusted release page through the external-lin
     assert.deepEqual(runtime.opened, [releaseUrl]);
 });
 
+test('update notice preserves valid SemVer build metadata in the trusted release tag', async () => {
+    const releaseUrl = 'https://github.com/UdayaSri0/whatsapp-electron-main/releases/tag/v1.3.0%2Bmeta.4';
+    const runtime = await boot({ dialogResponse: 0, updateResult: { status: 'available', version: '1.3.0+meta.4', releaseUrl } });
+    await menuItem(runtime, 'Help', 'Check for Updates').click();
+    assert.deepEqual(runtime.opened, [releaseUrl]);
+});
+
 test('Business keeps the manual Help check but has no automatic package-check setting', async () => {
     const runtime = await boot({ packaged: true, packagedVariant: 'business', updateResult: { status: 'restricted' } });
     assert.equal(menuItem(runtime, 'Settings', 'Automatically check for updates').visible, false);

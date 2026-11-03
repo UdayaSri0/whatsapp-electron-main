@@ -334,7 +334,7 @@ async function checkForUpdates(manual = true) {
     catch (error) { result = { status: 'unavailable' }; }
     if (result.status === 'available') {
         const url = externalUrl(result.releaseUrl);
-        if (!url || !/^https:\/\/github\.com\/UdayaSri0\/whatsapp-electron-main\/releases\/tag\/v\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(url)) return;
+        if (!url || !/^https:\/\/github\.com\/UdayaSri0\/whatsapp-electron-main\/releases\/tag\/v\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:%2B[0-9A-Za-z.-]+)?$/.test(url)) return;
         try {
             const options = { type: 'info', title: 'Update available', message: `${variant.productName} ${result.version} is available.`,
                 detail: 'Open the GitHub release page for package checksums and installation instructions. Nothing will be downloaded automatically.',
