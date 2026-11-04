@@ -52,15 +52,30 @@ sudo -u whatsapp-acceptance env -i \
         open_update_dialog() {
             local window=$1 dialog_window=
             wmctrl -ia "$window"
-            xdotool key --clearmodifiers alt+h
+            xdotool key --clearmodifiers F10
             sleep 0.4
-            xdotool key --clearmodifiers Down Return
-            for _ in $(seq 1 25); do
-                dialog_window=$(xdotool search --onlyvisible --name "^Check for Updates$" 2>/dev/null | head -n 1 || true)
+            xdotool key --clearmodifiers Right Right Right Right Down Return
+            for _ in $(seq 1 12); do
+                dialog_window=$(xdotool search --onlyvisible --name "Check for Updates" 2>/dev/null | head -n 1 || true)
                 [[ -z "$dialog_window" ]] || break
                 sleep 1
             done
-            [[ -n "$dialog_window" ]] || { echo "Help update check dialog did not appear" >&2; return 1; }
+            if [[ -z "$dialog_window" ]]; then
+                wmctrl -ia "$window"
+                xdotool key --clearmodifiers alt+h
+                sleep 0.4
+                xdotool key --clearmodifiers Down Return
+                for _ in $(seq 1 12); do
+                    dialog_window=$(xdotool search --onlyvisible --name "Check for Updates" 2>/dev/null | head -n 1 || true)
+                    [[ -z "$dialog_window" ]] || break
+                    sleep 1
+                done
+            fi
+            [[ -n "$dialog_window" ]] || {
+                echo "Help update check dialog did not appear; visible window titles:" >&2
+                wmctrl -l >&2
+                return 1
+            }
             xdotool key --clearmodifiers Escape
             sleep 0.4
         }
