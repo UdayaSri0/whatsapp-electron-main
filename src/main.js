@@ -440,7 +440,7 @@ function refreshMenus() {
         { label: 'View', submenu: [{ role: 'resetZoom' }, { role: 'zoomIn' }, { role: 'zoomOut' },
             { type: 'separator' }, { role: 'togglefullscreen' }] },
         { label: 'Settings', submenu: settingsMenuItems() },
-        { label: 'Help', submenu: [
+        { label: '&Help', submenu: [
             { label: 'Check for Updates', click: () => checkForUpdates() },
             { label: 'Copy Diagnostics', click: () => {
                 try { clipboard.writeText(diagnosticText({

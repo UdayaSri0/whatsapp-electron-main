@@ -382,11 +382,13 @@ test('restored maximized state retains normal geometry through shutdown persiste
 });
 
 function menuItem(runtime, group, label) {
-    return runtime.app.menu.find(item => item.label === group).submenu.find(item => item.label === label);
+    const displayLabel = value => typeof value === 'string' ? value.replace(/&/g, '') : value;
+    return runtime.app.menu.find(item => displayLabel(item.label) === group).submenu.find(item => displayLabel(item.label) === label);
 }
 
 test('native menus remain accessible without tray and preserve editing shortcuts', async () => {
     const runtime = await boot({ trayFailure: true });
+    assert.equal(runtime.app.menu.find(item => item.label === '&Help').label, '&Help');
     assert.equal(runtime.windows[0].options.autoHideMenuBar, false);
     assert.equal(menuItem(runtime, 'Settings', 'Minimize to tray on close').enabled, false);
     assert.equal(menuItem(runtime, 'Settings', 'Start automatically at login').enabled, false);
@@ -405,7 +407,7 @@ test('native menus remain accessible without tray and preserve editing shortcuts
 
 test('Help menu offers a manual update check without checking by default', async () => {
     const runtime = await boot();
-    const help = runtime.app.menu.find(item => item.label === 'Help').submenu;
+    const help = runtime.app.menu.find(item => item.label.replace(/&/g, '') === 'Help').submenu;
     const check = help.find(item => item.label === 'Check for Updates');
     assert.ok(check);
     assert.equal(runtime.updateRequests.length, 0);

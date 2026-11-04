@@ -22,4 +22,10 @@ test('Ubuntu package acceptance is read-only and does not expose or publish cred
 
 test('Xvfb acceptance keeps Electron sandboxing enabled', () => {
     assert.doesNotMatch(smoke, /--no-sandbox/);
+    assert.match(smoke, /alt\+h/);
+    assert.match(smoke, /Personal: PASS/);
+    assert.match(smoke, /Business: PASS/);
+    assert.match(smoke, /WM_CLASS/);
+    assert.match(smoke, /getactivewindow/);
+    assert.match(smoke, /tesseract/);
 });
