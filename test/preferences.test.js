@@ -19,6 +19,12 @@ test('corrupt preference structures recover with visible defaults and bounded ge
     assert.equal(validatedPrefs({ minimizeToTray: true, startMinimized: true }).minimizeToTray, true);
 });
 
+test('automatic update checks default off and older profiles retain their existing preferences', () => {
+    assert.equal(validatedPrefs().automaticUpdateChecks, false);
+    assert.deepEqual(validatedPrefs({ startMinimized: true, microphoneEnabled: false }).automaticUpdateChecks, false);
+    assert.equal(validatedPrefs({ automaticUpdateChecks: true, startMinimized: true }).automaticUpdateChecks, true);
+});
+
 test('atomic serialization preserves existing preferences without leaking temporary files', t => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'whatsapp-prefs-'));
     t.after(() => fs.rmSync(dir, { recursive: true, force: true }));

@@ -60,6 +60,15 @@ Obtain qualified legal review and the applicable written authorization before
 publishing Business binaries. Existing source notices and GPL-2.0-or-later
 obligations remain in force.
 
+## Update notifications
+
+The Business build includes **Help → Check for Updates**, but checks return a
+distribution-restricted result without querying releases or identifying a
+Business asset. Automatic checks default off and do not advertise Business
+packages. Enabling future Business release notices requires a reviewed change
+after written distribution authorization; a GitHub CLI acknowledgement or
+release asset alone is not authorization.
+
 ## Install, remove and preserve profiles
 
 The Business DEB/AppImage artifacts have independent package, executable,

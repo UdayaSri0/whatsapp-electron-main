@@ -1,8 +1,8 @@
 # Build, install and release
 
-Owner and maintainer: UdayaSri0. Current candidate: **1.2.0-rc.1**.
+Owner and maintainer: UdayaSri0. Next candidate: **1.2.0-rc.2**.
 Supported build contract: Linux x86_64, Node 22.12+ within 22 or Node 24.
-Exact build dependencies remain Electron 43.7.0 and electron-builder 26.15.3.
+Exact build dependencies are Electron 43.8.6 and electron-builder 26.18.1.
 Use a native filesystem with symlink and Unix permission support; clone under
 your Linux home directory rather than on exFAT.
 
@@ -54,9 +54,19 @@ Before upgrading, quit all application instances. Existing product name,
 executable, application ID, WM_CLASS and profile are retained. The profile is
 normally `~/.config/WhatsApp`, subject to Electron's existing XDG behavior.
 Do not remove it during upgrade/uninstall unless you deliberately want to unlink
-and delete local session data. No new updater or profile migration is introduced.
+and delete local session data. No package installer or profile migration is
+introduced; the optional update-check preference defaults off for older profiles.
 Uninstall DEB/RPM using the package manager; remove an AppImage manually.
 Disable autostart before removing the executable.
+
+**Help → Check for Updates** only opens a matching GitHub release page. It does
+not download packages. For a DEB or RPM, download the matching asset yourself,
+verify its SHA-256, then install the local package with your distribution's
+package manager; installing a newer package with the same package identity
+upgrades that variant. For an AppImage, quit the app, download and verify the
+new image, then replace the old file at its existing path (or update the
+explicit autostart/shortcut path if you move it). None of these operations
+changes the profile. See [update notifications](update-notifications.md).
 
 ## Desktop integration
 

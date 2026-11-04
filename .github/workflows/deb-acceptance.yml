@@ -1,0 +1,115 @@
+name: Ubuntu DEB lifecycle acceptance
+
+on:
+  push:
+    branches: [feat/stable-update-hardening]
+
+permissions:
+  contents: read
+
+jobs:
+  deb-lifecycle:
+    if: github.repository == 'UdayaSri0/whatsapp-electron-main' && github.ref == 'refs/heads/feat/stable-update-hardening'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Install runner-only package and X11 test tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y apparmor apparmor-utils dbus-daemon desktop-file-utils imagemagick openbox tesseract-ocr wmctrl x11-utils xdotool xvfb xauth
+      - run: npm ci
+      - name: Build both DEBs from this committed source
+        run: |
+          npm run build:personal -- deb
+          npm run build:business -- deb
+          npm run verify:packages
+          test -z "$(git status --porcelain --untracked-files=normal)"
+          node <<'NODE'
+          const assert = require('node:assert/strict');
+          const crypto = require('node:crypto');
+          const fs = require('node:fs');
+          const { execFileSync } = require('node:child_process');
+          const pkg = require('./package.json');
+          const { variants } = require('./config/variants');
+          const commit = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
+          for (const variant of Object.values(variants)) {
+            const name = variant.artifactNames.deb.replace('${version}', pkg.version);
+            const artifact = `dist/${name}`;
+            const metadata = JSON.parse(fs.readFileSync(`dist/BUILD-METADATA.${variant.name}.deb.json`, 'utf8'));
+            assert.equal(metadata.variant, variant.name);
+            assert.equal(metadata.target, 'deb');
+            assert.equal(metadata.version, pkg.version);
+            assert.equal(metadata.commit, commit);
+            assert.equal(metadata.artifact, name);
+            assert.equal(metadata.sha256, crypto.createHash('sha256').update(fs.readFileSync(artifact)).digest('hex'));
+          }
+          NODE
+      - name: Build the earlier Business candidate from trusted main source
+        env:
+          BUSINESS_BASELINE_COMMIT: c9d8601075ccf6e1183423e41f3b4a3226e0bc32
+        run: |
+          git merge-base --is-ancestor "$BUSINESS_BASELINE_COMMIT" HEAD
+          previous="$RUNNER_TEMP/business-rc1-source"
+          git worktree add --detach "$previous" "$BUSINESS_BASELINE_COMMIT"
+          trap 'git worktree remove --force "$previous"' EXIT
+          npm --prefix "$previous" ci
+          npm --prefix "$previous" run build:business -- deb
+          BUSINESS_DEB=$(find "$previous/dist" -maxdepth 1 -type f -name 'business-chat-for-whatsapp-unofficial-*-amd64.deb' -print -quit)
+          test -n "$BUSINESS_DEB"
+          cp "$BUSINESS_DEB" "$RUNNER_TEMP/business-rc1.deb"
+          cp "$previous/dist/BUILD-METADATA.business.deb.json" "$RUNNER_TEMP/business-rc1-build-metadata.json"
+          node - "$RUNNER_TEMP/business-rc1-build-metadata.json" "$RUNNER_TEMP/business-rc1.deb" <<'NODE'
+          const assert = require('node:assert/strict');
+          const crypto = require('node:crypto');
+          const fs = require('node:fs');
+          const metadata = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+          assert.equal(metadata.variant, 'business');
+          assert.equal(metadata.target, 'deb');
+          assert.equal(metadata.version, '1.2.0-rc.1');
+          assert.equal(metadata.commit, 'c9d8601075ccf6e1183423e41f3b4a3226e0bc32');
+          assert.equal(metadata.sha256, crypto.createHash('sha256').update(fs.readFileSync(process.argv[3])).digest('hex'));
+          NODE
+      - name: Download and verify the published Personal RC1 package
+        env:
+          PERSONAL_RC1_SHA256: 4580cfec8c6646b9487ad3d5799fdd0314babae39a07e12ed51b10d0ec44b1c1
+        run: |
+          curl --fail --location --retry 3 \
+            https://github.com/UdayaSri0/whatsapp-electron-main/releases/download/v1.2.0-rc.1/whatsapp-electron-1.2.0-rc.1-amd64.deb \
+            --output "$RUNNER_TEMP/personal-rc1.deb"
+          echo "$PERSONAL_RC1_SHA256  $RUNNER_TEMP/personal-rc1.deb" | sha256sum --check --status
+          test "$(dpkg-deb -f "$RUNNER_TEMP/personal-rc1.deb" Package)" = whatsapp-electron
+          test "$(dpkg-deb -f "$RUNNER_TEMP/personal-rc1.deb" Version)" = '1.2.0~rc.1'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Run the complete suite on Node 22 after package creation
+        run: |
+          npm ci
+          npm run check
+          npm test
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Run the complete suite on Node 24 after package creation
+        run: |
+          npm ci
+          npm run check
+          npm test
+          npm run verify:packages
+      - name: Install both variants, exercise upgrades and removals
+        env:
+          PERSONAL_RC1_DEB: ${{ runner.temp }}/personal-rc1.deb
+          BUSINESS_RC1_DEB: ${{ runner.temp }}/business-rc1.deb
+          PERSONAL_RC2_DEB: ${{ github.workspace }}/dist/whatsapp-electron-1.2.0-rc.2-amd64.deb
+          BUSINESS_RC2_DEB: ${{ github.workspace }}/dist/business-chat-for-whatsapp-unofficial-1.2.0-rc.2-amd64.deb
+        run: scripts/ubuntu-deb-acceptance.sh

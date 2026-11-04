@@ -1,4 +1,4 @@
-# Security policy — 1.2.0-rc.1
+# Security policy — 1.2.0-rc.2 candidate
 
 Project owner and maintainer: UdayaSri0. Report reproducible problems to this
 fork's issue tracker; never include credentials, chats or raw profile data.
@@ -33,7 +33,7 @@ privileged Electron or Node interfaces. Existing authentication/profile paths
 remain unchanged. No account credentials, message automation or encryption
 mechanisms are modified.
 
-## Screen sharing is currently blocked in Electron 43.7.0
+## Screen sharing is currently blocked in Electron 43.8.6
 
 Do not interpret passing display-handler unit tests as working screen sharing.
 The pinned runtime's source routes media requests through a permission check
@@ -53,15 +53,16 @@ would otherwise hide a desktop component combined with a normal device request.
 Evidence: both the baseline Electron v43.1.1
 [RequestMediaAccessPermission and MediaAccessAllowed](https://github.com/electron/electron/blob/v43.1.1/shell/browser/web_contents_permission_helper.cc)
 and the updated
-[Electron v43.7.0 source](https://github.com/electron/electron/blob/v43.7.0/shell/browser/web_contents_permission_helper.cc)
+[Electron v43.8.6 source](https://github.com/electron/electron/blob/v43.8.6/shell/browser/web_contents_permission_helper.cc)
 show the shared permission request followed by separate legacy/modern capture
 branches. The updated
-[permission manager](https://github.com/electron/electron/blob/v43.7.0/shell/browser/electron_permission_manager.cc)
+[permission manager](https://github.com/electron/electron/blob/v43.8.6/shell/browser/electron_permission_manager.cc)
 sets `isMainFrame` and requesting URLs for requests/checks and audio/video types
 for device checks. This version-specific behavior takes precedence over
 [latest session documentation](https://www.electronjs.org/docs/latest/api/session),
 which describes a distinct `display-capture` permission.
-The same-major security update to 43.7.0 does not resolve this API limitation.
+The 43.8.6 same-major maintenance update retains this limitation; it does not
+justify weakening the permission boundary.
 
 The separate display handler is hardened for a future verified safe API path:
 it requires a user gesture, the current main frame, exact origin, and explicit
@@ -104,5 +105,9 @@ not authentication against another process sharing the user's account.
 Copy Diagnostics exports selected version/platform/setting values using the
 native clipboard. It does not read chats, credentials, profile paths, complete
 environment variables or renderer logs. Desktop/session fields are allowlisted.
-Review any manually supplied logs before sharing. This app adds no telemetry,
-message automation, credential extraction or automatic update mechanism.
+Review any manually supplied logs before sharing. The optional update check uses
+the fixed GitHub API over HTTPS and sends no account or profile data. It never
+downloads or installs packages. Automatic daily checks are disabled by default;
+users must opt in. Business release checks remain restricted while public
+distribution is unauthorized. See [update notifications](update-notifications.md).
+No telemetry, message automation or credential extraction is added.

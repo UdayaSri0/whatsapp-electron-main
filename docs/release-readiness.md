@@ -2,12 +2,15 @@
 
 ## Current status
 
-Current package version: `1.2.0-rc.1`. The repository already has a public
+Current package version: `1.2.0-rc.2`. The repository already has a public
 Personal-only prerelease, `v1.2.0-rc.1` (published 2026-10-23), with Personal
 DEB, AppImage and RPM assets. It predates PR #6; this change has not modified
 that release. No stable release or Business binary is present, and no
 WhatsApp/Meta authorization is recorded. The new workflow prepares a **draft**
 only; a maintainer must review and manually publish it.
+
+Current branch test, dependency and package evidence is recorded in
+[stable update validation](stable-update-validation.md).
 
 | Requirement | Status | Evidence / next action |
 | --- | --- | --- |
@@ -17,14 +20,32 @@ only; a maintainer must review and manually publish it.
 | Personal-only asset mode | PASS | `npm run release:assets -- --mode personal` requires only Personal packages and rejects Business packages/provenance in `dist/` |
 | Dual-variant asset mode requires explicit selection | PASS | `--mode dual` requires `--business-distribution-authorized`; workflow additionally requires a protected environment secret |
 | Routine pull-request CI uploads binaries | PASS | CI builds and validates packages but uploads no artifacts |
+| Manual update notifications | PASS | Fixed GitHub API endpoint, SemVer comparison, exact Personal asset names, opt-in daily checks default off; Business checks are restricted |
+| Dependency audit | RISK ACCEPTANCE REQUIRED | 15 moderate development-tree records remain for GHSA-g3hv-75wg-m249; proposed disposition is code-merge-only acceptance, pending maintainer sign-off; see [dependency review](security-audit-stable-update.md) |
 | Public publication policy clearance for Personal wrapper | BLOCKED | Official policy review/legal advice required; being the existing Personal app does not establish third-party client support |
 | Public Business distribution authorization | BLOCKED | No written WhatsApp/Meta authorization; keep `BUSINESS_DISTRIBUTION_AUTHORIZED` environment secret unset |
 | Historical Personal QR/login/text checks | BLOCKED | Issue #5 has these boxes checked, while the published RC notes say they were NOT verified; reconcile the evidence before treating them as PASS |
 | Business login and communication acceptance | BLOCKED | Requires policy clearance, any required written authorization, explicit account-owner approval and consenting test participants |
 | Cross-variant logout/session isolation with linked accounts | NOT RUN | Must be verified after account-use authorization; no account was linked during this task |
-| Real DEB package-manager install/upgrade/removal on target distros | NOT RUN | Use disposable VM/snapshot; package scripts must not run on the developer's host for this acceptance |
-| Calls, notification and desktop matrix | NOT RUN | Follow [manual acceptance](manual-acceptance.md) |
+| Real DEB package-manager install/upgrade/removal on Ubuntu 24.04 | PASS | Disposable GitHub-hosted runner run [41792547119](https://github.com/UdayaSri0/whatsapp-electron-main/actions/runs/41792547119): fresh install, coexistence, RC1→RC2 upgrades, independent removal, integration cleanup and synthetic profile preservation passed |
+| Xvfb Electron menu and update-status checks | PASS (Xvfb only) | Run [41792547119](https://github.com/UdayaSri0/whatsapp-electron-main/actions/runs/41792547119) independently verified Personal's current-release notice and Business's restricted-distribution message. Real GNOME/KDE trays, notifications, Wayland, GPU and launcher behavior remain NOT RUN; see [manual acceptance](manual-acceptance.md). |
+| Calls, notifications and real desktop matrix | NOT RUN | Follow [manual acceptance](manual-acceptance.md); live account checks require policy clearance and account-owner approval |
 | GPL source and original contributor notices | PASS | `LICENSE`, `NOTICE`, contributor metadata and source archive retained; recheck bundled dependency notices for each release |
+
+## Acceptance recommendation
+
+- **Code merge: READY FOR CODE MERGE.** Node 22/24 tests and package CI pass;
+  the independent review found no code findings. The 15 moderate build-tree
+  minimatch records are documented. Proposed maintainer disposition: accept
+  this build/CI availability risk for code merge only; no maintainer sign-off
+  has been recorded yet, and this is not release risk acceptance.
+- **Personal prerelease: BLOCKED.** Ubuntu 24.04 DEB lifecycle and Xvfb Help
+  update-status checks pass, but native desktop launcher, tray, notification
+  and linked-account checks remain incomplete. Personal publication policy
+  clearance is also unresolved.
+- **Dual release: BLOCKED.** Personal acceptance blockers remain, and written
+  Business distribution authorization plus protected-environment review are
+  absent. Keep the Business distribution secret unset.
 
 ## What can be checked without a live account
 
@@ -43,8 +64,13 @@ the OS temporary directory. It simulates package install, higher-version
 payload overlay and package-owned-file removal there, with synthetic profile
 sentinels. It does **not** run Debian maintainer scripts or invoke `dpkg -i` on
 the host. Removal scripts are inspected statically by `npm run verify:packages`.
-Actual package-manager lifecycle acceptance remains NOT RUN and belongs in a
-disposable VM that can be discarded.
+Actual local package-manager lifecycle acceptance remains NOT RUN, to avoid
+changing the developer host. The dedicated trusted-branch GitHub Actions
+workflow completed real install, upgrade and removal scripts in an ephemeral
+`ubuntu-24.04` runner; run 41792547119 passed and is recorded in the manual
+acceptance checklist. CI built the RC2 DEBs from commit
+`90bdbdb002db7f01dea78cc7a32390eac9a03319` and verified embedded commit/hash
+provenance. No packages or sensitive diagnostics were uploaded from that run.
 
 ## Checks requiring further authorization
 
@@ -93,6 +119,9 @@ that environment in GitHub settings; repository workflow files cannot enforce
 an environment's reviewer configuration by themselves. The manual candidate
 workflow uses the same gate before uploading temporary Actions artifacts. CI
 never uploads package artifacts.
+
+The next candidate is `1.2.0-rc.2`; `v1.2.0-rc.1` and its assets remain
+unchanged. This version bump does not create a tag or authorize a release.
 
 To prepare assets locally from a clean committed tree:
 

@@ -25,6 +25,7 @@ const {
 } = require('./security');
 const { installDesktopShortcut } = require('./desktop-integration');
 const { diagnosticText } = require('./diagnostics');
+const { checkForUpdate } = require('./update-check');
 const { getAutostartStatus, setAutostart } = require('./autostart');
 const { validatedPrefs, writePreferences, restoredWindowBounds } = require('./preferences');
 const { installPermissionHandlers } = require('./permissions');
@@ -142,6 +143,7 @@ let tray = null;
 let isQuitting = false;
 let unreadCount = 0;
 let loadRetryTimer = null;
+let updateCheckTimer = null;
 let loadRetryDelay = 5000;
 
 function clearLoadRetry() {
@@ -326,6 +328,49 @@ function showDialog(options) {
     }
 }
 
+async function checkForUpdates(manual = true) {
+    let result;
+    try { result = await checkForUpdate({ currentVersion: app.getVersion(), variant }); }
+    catch (error) { result = { status: 'unavailable' }; }
+    if (result.status === 'available') {
+        const url = externalUrl(result.releaseUrl);
+        if (!url || !/^https:\/\/github\.com\/UdayaSri0\/whatsapp-electron-main\/releases\/tag\/v\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:%2B[0-9A-Za-z.-]+)?$/.test(url)) return;
+        try {
+            const options = { type: 'info', title: 'Update available', message: `${variant.productName} ${result.version} is available.`,
+                detail: 'Open the GitHub release page for package checksums and installation instructions. Nothing will be downloaded automatically.',
+                buttons: ['View release', 'Later'], defaultId: 0, cancelId: 1 };
+            const choice = mainWindow && !mainWindow.isDestroyed()
+                ? await dialog.showMessageBox(mainWindow, options) : await dialog.showMessageBox(options);
+            if (choice.response === 0) safeOpenExternal(url);
+        } catch (error) { console.warn('[updates] notification unavailable:', error?.message || error); }
+        return;
+    }
+    if (!manual) return;
+    const messages = {
+        current: 'You are using the latest matching release.',
+        none: 'No published release with a package for this application was found.',
+        restricted: 'Business release notifications are unavailable while public distribution is unauthorized.',
+        'rate-limited': 'GitHub temporarily limited update checks. Try again later.',
+        timeout: 'The update check timed out. Check your connection and try again.',
+        unavailable: 'The update check could not reach GitHub or read a valid response.',
+    };
+    showDialog({ type: result.status === 'current' ? 'info' : 'warning', title: 'Check for Updates',
+        message: messages[result.status] || messages.unavailable });
+}
+
+function scheduleAutomaticUpdateCheck(checkNow = false) {
+    if (updateCheckTimer) clearTimeout(updateCheckTimer);
+    updateCheckTimer = null;
+    if (isQuitting || !store.get('automaticUpdateChecks')) return;
+    if (checkNow) void checkForUpdates(false);
+    updateCheckTimer = setTimeout(() => {
+        updateCheckTimer = null;
+        void checkForUpdates(false);
+        scheduleAutomaticUpdateCheck();
+    }, 86400000);
+    updateCheckTimer.unref();
+}
+
 function integrationError(title, error) {
     console.warn(`[${title}] failed:`, error?.message || error);
     showDialog({ type: 'error', title,
@@ -340,6 +385,7 @@ function togglePreference(key, value) {
     store.set(key, value);
     flushPrefs();
     if (key === 'microphoneEnabled' || key === 'cameraEnabled') loadWhatsApp({ resetBackoff: true });
+    if (key === 'automaticUpdateChecks') scheduleAutomaticUpdateCheck(value);
     refreshMenus();
 }
 
@@ -361,6 +407,8 @@ function settingsMenuItems() {
             click: item => togglePreference('microphoneEnabled', item.checked) },
         { label: 'Allow camera (reload ends calls)', type: 'checkbox', checked: store.get('cameraEnabled'),
             click: item => togglePreference('cameraEnabled', item.checked) },
+        { label: 'Automatically check for updates', type: 'checkbox', visible: variant.name === 'personal', checked: store.get('automaticUpdateChecks'),
+            click: item => togglePreference('automaticUpdateChecks', item.checked) },
         { type: 'separator' },
         { label: 'Start automatically at login', type: 'checkbox', enabled: Boolean(canAutostart), checked: autostartEnabled,
             click: item => {
@@ -392,7 +440,8 @@ function refreshMenus() {
         { label: 'View', submenu: [{ role: 'resetZoom' }, { role: 'zoomIn' }, { role: 'zoomOut' },
             { type: 'separator' }, { role: 'togglefullscreen' }] },
         { label: 'Settings', submenu: settingsMenuItems() },
-        { label: 'Help', submenu: [
+        { label: '&Help', submenu: [
+            { label: 'Check for Updates', click: () => checkForUpdates() },
             { label: 'Copy Diagnostics', click: () => {
                 try { clipboard.writeText(diagnosticText({
                 version: app.getVersion(), electron: process.versions.electron, chrome: process.versions.chrome,
@@ -468,6 +517,7 @@ app.whenReady().then(() => {
     createTray();
     createWindow({ forceShow: pendingShow });
     refreshMenus();
+    scheduleAutomaticUpdateCheck(true);
 
     app.on('activate', () => {
         if (BrowserWindow.getAllWindows().length === 0) createWindow({ forceShow: true });
@@ -487,5 +537,7 @@ app.on('window-all-closed', () => {
 app.on('before-quit', () => {
     isQuitting = true;
     clearLoadRetry();
+    if (updateCheckTimer) clearTimeout(updateCheckTimer);
+    updateCheckTimer = null;
     flushPrefs();
 });
