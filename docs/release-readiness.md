@@ -21,7 +21,7 @@ Current branch test, dependency and package evidence is recorded in
 | Dual-variant asset mode requires explicit selection | PASS | `--mode dual` requires `--business-distribution-authorized`; workflow additionally requires a protected environment secret |
 | Routine pull-request CI uploads binaries | PASS | CI builds and validates packages but uploads no artifacts |
 | Manual update notifications | PASS | Fixed GitHub API endpoint, SemVer comparison, exact Personal asset names, opt-in daily checks default off; Business checks are restricted |
-| Dependency audit | BLOCKED | 15 moderate development-tree records remain for GHSA-g3hv-75wg-m249; see [dependency review](security-audit-stable-update.md) |
+| Dependency audit | RISK ACCEPTANCE REQUIRED | 15 moderate development-tree records remain for GHSA-g3hv-75wg-m249; proposed disposition is code-merge-only acceptance, pending maintainer sign-off; see [dependency review](security-audit-stable-update.md) |
 | Public publication policy clearance for Personal wrapper | BLOCKED | Official policy review/legal advice required; being the existing Personal app does not establish third-party client support |
 | Public Business distribution authorization | BLOCKED | No written WhatsApp/Meta authorization; keep `BUSINESS_DISTRIBUTION_AUTHORIZED` environment secret unset |
 | Historical Personal QR/login/text checks | BLOCKED | Issue #5 has these boxes checked, while the published RC notes say they were NOT verified; reconcile the evidence before treating them as PASS |
@@ -35,7 +35,9 @@ Current branch test, dependency and package evidence is recorded in
 
 - **Code merge: READY FOR CODE MERGE.** Node 22/24 tests and package CI pass;
   the independent review found no code findings. The 15 moderate build-tree
-  minimatch records are documented and remain a maintainer risk decision.
+  minimatch records are documented. Proposed maintainer disposition: accept
+  this build/CI availability risk for code merge only; no maintainer sign-off
+  has been recorded yet, and this is not release risk acceptance.
 - **Personal prerelease: BLOCKED.** The real DEB package-manager lifecycle,
   graphical update-menu flow and window/tray/launcher checks need an isolated
   Ubuntu desktop environment. Personal publication policy clearance is also
@@ -61,8 +63,8 @@ the OS temporary directory. It simulates package install, higher-version
 payload overlay and package-owned-file removal there, with synthetic profile
 sentinels. It does **not** run Debian maintainer scripts or invoke `dpkg -i` on
 the host. Removal scripts are inspected statically by `npm run verify:packages`.
-Actual package-manager lifecycle acceptance remains NOT RUN and belongs in a
-disposable VM that can be discarded.
+Actual package-manager lifecycle acceptance is BLOCKED here and belongs in a
+disposable Ubuntu VM snapshot that can be discarded.
 
 ## Checks requiring further authorization
 

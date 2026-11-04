@@ -39,12 +39,14 @@ this checklist.
 
 ## Manual sequence after authorization
 
-On 2026-11-04 the available host was Ubuntu 26.10 Wayland, without QEMU,
-Docker, Podman or an LXD/Incus service. A user-namespace overlay mount probe
-failed. No package manager was run against the host. The generated DEB
-maintainer scripts invoke `update-alternatives` and may update AppArmor, so
-actual package-manager acceptance remains BLOCKED until an isolated Ubuntu
-snapshot is available.
+On 2026-11-04 the available host was Ubuntu 26.10 Wayland. VirtualBox 7.2.20
+was installed, but its only registered VM was a powered-off GNS3 VM with no
+snapshots; no Ubuntu 24.04 VM or ISO was available. The GNS3 VM was not touched.
+QEMU, Docker, Podman and an LXD/Incus service were unavailable. A user-namespace
+overlay mount probe failed. No package manager was run against the host. The
+generated DEB maintainer scripts invoke `update-alternatives` and may update
+AppArmor, so actual package-manager acceptance remains BLOCKED until an isolated
+Ubuntu snapshot is available.
 
 1. Record distro/version, desktop, display server, GPU, package hash and source
    commit. Start from a disposable snapshot with separate empty profile paths.
