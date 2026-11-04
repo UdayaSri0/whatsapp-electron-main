@@ -29,7 +29,7 @@ this checklist.
 | Outgoing/incoming voice and video calls | BLOCKED | BLOCKED | Test microphone/camera, two-way audio/video and call teardown |
 | Deny and re-enable microphone/camera permissions | NOT RUN | NOT RUN | Device permission UX may be checked without account; call recovery is BLOCKED |
 | Disconnect network and recover | NOT RUN | NOT RUN | Local reconnect behavior may be checked signed out; message continuity is BLOCKED |
-| Help → Check for Updates and opt-in setting | FAIL | NOT RUN | The Xvfb smoke launched both windows, then failed to open the Personal Help update dialog; it stopped before attempting the Business menu. API behavior and preferences remain covered by automated tests. Business public update checking remains restricted. |
+| Help → Check for Updates and opt-in setting | NOT VERIFIED | NOT VERIFIED | Run 41780841459 found both app windows but did not open the Personal dialog, then stopped before Business. Alt+H lacked a mnemonic because the label was plain `Help`; the replacement `&Help`/focus/OCR harness has not yet completed a valid run. Business remains distribution-restricted. |
 | Package names, executable paths, desktop files and icons | PASS | PASS | `dpkg-deb` metadata and payload inspection; identities are distinct. Desktop click/WM_CLASS/icon rendering remain NOT RUN. |
 | Install both DEBs together; verify launcher and package identities | PASS | PASS | GitHub Actions run [41779521078](https://github.com/UdayaSri0/whatsapp-electron-main/actions/runs/41779521078), Ubuntu 24.04 disposable runner: installed RC2 packages together, verified versions, unique executable/desktop identities, alternatives and AppArmor registration. This does not verify click-to-launch or icon rendering in GNOME/KDE. |
 | Upgrade each package over an older build | PASS | PASS | Same run upgraded Personal from the SHA256-verified published RC1 DEB and Business from a source build at trusted `main` commit `c9d8601` to RC2. |
@@ -65,10 +65,19 @@ and distinct files, upgraded Personal from the published RC1 package and
 Business from a source build at trusted `main` commit `c9d8601`, then removed
 each variant independently. Synthetic profile sentinels survived removal. The
 workflow also attempted signed-out Xvfb window startup and the Help update-check
-menu in a fresh D-Bus session: both windows launched, but the Personal update
-dialog did not appear and the smoke stopped before testing the Business menu.
-Xvfb does not verify real GNOME/KDE trays, notification integration, Wayland
-behavior or hardware acceleration. No screenshots or account data were retained.
+menu in a fresh D-Bus session. Run 41780841459 found both windows but did not
+open the Personal dialog; it stopped before Business. The old test sent Alt+H
+without a menu mnemonic and also used an unchecked fixed F10/arrow sequence.
+This establishes a defect in the test's activation assumptions, not a defect in
+the update handler. The revised test gives Help Electron's documented Alt+H
+mnemonic, records title, WM_CLASS, active window and focus, checks Personal and
+Business independently, and validates only each static update dialog's status
+text using a temporary dialog-only image that is deleted. Runs 41787240762 and
+41788938969 did not reach app startup because the isolated test account could
+not write the runner's result-file path. The final runner-owned output capture
+still needs a completed run before either result can be marked PASS. Xvfb cannot
+verify real GNOME/KDE trays, notification integration, Wayland behavior or
+hardware acceleration. No screenshots or account data are uploaded.
 
 1. Record distro/version, desktop, display server, GPU, package hash and source
    commit. Start from a disposable snapshot with separate empty profile paths.

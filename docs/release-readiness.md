@@ -28,7 +28,7 @@ Current branch test, dependency and package evidence is recorded in
 | Business login and communication acceptance | BLOCKED | Requires policy clearance, any required written authorization, explicit account-owner approval and consenting test participants |
 | Cross-variant logout/session isolation with linked accounts | NOT RUN | Must be verified after account-use authorization; no account was linked during this task |
 | Real DEB package-manager install/upgrade/removal on Ubuntu 24.04 | PASS | Disposable GitHub-hosted runner run [41779521078](https://github.com/UdayaSri0/whatsapp-electron-main/actions/runs/41779521078): fresh install, coexistence, RC1→RC2 upgrades, independent removal, integration cleanup and synthetic profile preservation passed |
-| Xvfb window and Help update-menu smoke | FAIL / PARTIAL | Both signed-out windows launched; Help → Check for Updates dialog did not appear. Xvfb cannot establish native GNOME/KDE tray, notification, Wayland or hardware-acceleration behavior; see [manual acceptance](manual-acceptance.md) |
+| Xvfb window and Help update-menu smoke | NOT VERIFIED | Run 41780841459 launched both windows but did not open Personal's Help dialog and stopped before Business. The previous test assumed Alt+H despite no `&` mnemonic; the revised independent checks have not completed. See [manual acceptance](manual-acceptance.md). |
 | Calls, notifications and real desktop matrix | NOT RUN | Follow [manual acceptance](manual-acceptance.md); live account checks require policy clearance and account-owner approval |
 | GPL source and original contributor notices | PASS | `LICENSE`, `NOTICE`, contributor metadata and source archive retained; recheck bundled dependency notices for each release |
 
