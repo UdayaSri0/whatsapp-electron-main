@@ -2,9 +2,10 @@
 set -Eeuo pipefail
 
 home_dir=/home/whatsapp-acceptance
-results_file="${RUNNER_TEMP:-/tmp}/whatsapp-xvfb-results"
-sudo rm -f "$results_file"
-sudo install -o whatsapp-acceptance -g whatsapp-acceptance /dev/null "$results_file"
+results_file=$(mktemp /tmp/whatsapp-xvfb-results.XXXXXX)
+chmod 644 "$results_file"
+sudo chown whatsapp-acceptance:whatsapp-acceptance "$results_file"
+trap 'rm -f "$results_file"' EXIT
 fail() { printf 'FAIL: %s\n' "$*" >&2; }
 
 smoke_status=0
