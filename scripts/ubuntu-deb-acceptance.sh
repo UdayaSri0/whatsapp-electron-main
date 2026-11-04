@@ -40,7 +40,7 @@ assert_alternative() {
 assert_profile_active() {
     local name=$1
     [[ -f "/etc/apparmor.d/$name" ]] || fail "AppArmor profile file missing: $name"
-    sudo apparmor_status --show=profiles | grep -Fq "$name" \
+    sudo apparmor_status --show=profiles | grep -Eq "(^|[[:space:]])${name}([[:space:]]|$)" \
         || fail "AppArmor profile is not registered: $name"
 }
 assert_desktop_entry() {
@@ -107,7 +107,10 @@ assert_removed() {
         fail "Alternative registration remains: $name"
     fi
     [[ ! -e "/etc/apparmor.d/$name" ]] || fail "AppArmor file remains: $name"
-    if sudo apparmor_status --show=profiles | grep -Fq "$name"; then
+    local loaded_profile
+    loaded_profile=$(sudo apparmor_status --show=profiles | grep -E "(^|[[:space:]])${name}([[:space:]]|$)" || true)
+    if [[ -n "$loaded_profile" ]]; then
+        printf 'Loaded AppArmor profile remained: %s\n' "$loaded_profile" >&2
         fail "Loaded AppArmor registration remains: $name"
     fi
 }
@@ -139,12 +142,6 @@ sudo apt-get install -y --no-install-recommends "$business_rc2"
 assert_package personal "$rc2_version"
 assert_package business "$rc2_version"
 assert_no_owned_file_overlap
-if scripts/xvfb-smoke.sh; then
-    xvfb_status=PASS
-else
-    xvfb_status=FAIL
-    echo '::warning::Xvfb smoke did not complete; DEB lifecycle checks will continue and report the graphical failure.'
-fi
 
 echo 'Independent removal: Personal leaves Business intact'
 remove_package whatsapp-electron whatsapp /usr/bin/whatsapp \
@@ -193,6 +190,17 @@ echo 'Remove Personal after upgrade and verify profile data survives'
 remove_package whatsapp-electron whatsapp /usr/bin/whatsapp \
     /usr/share/applications/whatsapp.desktop "$work_dir/personal-upgrade-files"
 assert_profile_sentinels
+
+echo 'Reinstall RC2 packages for the optional signed-out Xvfb smoke'
+sudo apt-get install -y --no-install-recommends "$personal_rc2" "$business_rc2"
+assert_package personal "$rc2_version"
+assert_package business "$rc2_version"
+if scripts/xvfb-smoke.sh; then
+    xvfb_status=PASS
+else
+    xvfb_status=FAIL
+    echo '::warning::Xvfb smoke did not complete; DEB lifecycle checks passed independently and report the graphical limitation.'
+fi
 
 if [[ -n "${GITHUB_STEP_SUMMARY:-}" ]]; then
     cat >>"$GITHUB_STEP_SUMMARY" <<'SUMMARY'

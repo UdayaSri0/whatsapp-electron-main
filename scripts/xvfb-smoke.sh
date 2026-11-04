@@ -52,6 +52,7 @@ sudo -u whatsapp-acceptance env -i \
         open_update_dialog() {
             local window=$1 dialog_window=
             wmctrl -ia "$window"
+            xdotool windowfocus --sync "$window"
             xdotool key --clearmodifiers F10
             sleep 0.4
             xdotool key --clearmodifiers Right Right Right Right Down Return
