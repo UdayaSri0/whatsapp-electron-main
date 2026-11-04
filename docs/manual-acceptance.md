@@ -29,12 +29,12 @@ this checklist.
 | Outgoing/incoming voice and video calls | BLOCKED | BLOCKED | Test microphone/camera, two-way audio/video and call teardown |
 | Deny and re-enable microphone/camera permissions | NOT RUN | NOT RUN | Device permission UX may be checked without account; call recovery is BLOCKED |
 | Disconnect network and recover | NOT RUN | NOT RUN | Local reconnect behavior may be checked signed out; message continuity is BLOCKED |
-| Help → Check for Updates and opt-in setting | NOT RUN | NOT RUN | API-only Personal check returned `current`; Business returned `restricted`. Automated tests cover newer releases, offline/rate limits, safe links and opt-in. Menu interaction was not run. |
+| Help → Check for Updates and opt-in setting | FAIL | NOT RUN | The Xvfb smoke launched both windows, then failed to open the Personal Help update dialog; it stopped before attempting the Business menu. API behavior and preferences remain covered by automated tests. Business public update checking remains restricted. |
 | Package names, executable paths, desktop files and icons | PASS | PASS | `dpkg-deb` metadata and payload inspection; identities are distinct. Desktop click/WM_CLASS/icon rendering remain NOT RUN. |
-| Install both DEBs together; verify launcher and package identities | NOT RUN | NOT RUN | Dedicated GitHub Actions lifecycle workflow added; results remain blocked until a successful run on the trusted branch. |
-| Upgrade each package over an older build | NOT RUN | NOT RUN | Workflow uses the published Personal RC1 package and a provenance-checked Business RC1 build from `c9d8601`; results remain blocked until it passes. |
-| Remove one package while the other remains installed | NOT RUN | NOT RUN | Workflow executes real `apt-get remove` operations and checks alternatives, AppArmor profiles, desktop files and package-owned files. |
-| Remove either package and preserve its user profile | NOT RUN | NOT RUN | Workflow uses synthetic profile sentinels only; results remain blocked until it passes. |
+| Install both DEBs together; verify launcher and package identities | PASS | PASS | GitHub Actions run [41779521078](https://github.com/UdayaSri0/whatsapp-electron-main/actions/runs/41779521078), Ubuntu 24.04 disposable runner: installed RC2 packages together, verified versions, unique executable/desktop identities, alternatives and AppArmor registration. This does not verify click-to-launch or icon rendering in GNOME/KDE. |
+| Upgrade each package over an older build | PASS | PASS | Same run upgraded Personal from the SHA256-verified published RC1 DEB and Business from a source build at trusted `main` commit `c9d8601` to RC2. |
+| Remove one package while the other remains installed | PASS | PASS | Same run performed independent removals in both orders; checked the remaining variant's files and integration entries, then checked cleanup of package-owned files, desktop entries, alternatives and AppArmor registrations. `update-alternatives` emitted transient dangling-link cleanup warnings; final state assertions passed. |
+| Remove either package and preserve its user profile | PASS | PASS | Same run used synthetic profile sentinels; both survived package removal. No real user profile or credentials were used. |
 | X11, Ubuntu/Mint, KDE and available NVIDIA systems | NOT RUN | NOT RUN | Test only on available hardware; do not change drivers or security settings |
 
 ## Manual sequence after authorization
@@ -55,16 +55,20 @@ GitHub-hosted `ubuntu-24.04` runner described below.
 It has read-only repository permissions, checkout credentials are not persisted,
 and it uses no repository secrets or artifact uploads. The runner builds both
 RC2 DEBs from the checked-out commit, verifies their recorded commit and hashes,
-then runs actual package-manager scripts inside the disposable hosted VM.
+then runs actual package-manager scripts inside the disposable hosted VM. Run
+41779521078 on 2026-11-04 passed the lifecycle checks on committed source
+`de4aa85d1f0f79e6f6f361a3d522fd49be666906`. The full test suite also passed
+after package creation on Node 22 (97/97) and Node 24 (97/97).
 
-The lifecycle checks install each RC2 package, verify their coexistence and
-distinct files, upgrade Personal from the published RC1 package and Business
-from a source build at trusted `main` commit `c9d8601`, then remove each variant
-independently. Synthetic profile sentinels verify that package removal does not
-touch user data. The workflow also attempts signed-out Xvfb window startup and
-the Help update-check menu in a fresh D-Bus session. The initial workflow run
-must pass before those cases are marked PASS; no result is inferred from the
-workflow definition alone.
+The lifecycle checks installed each RC2 package, verified their coexistence
+and distinct files, upgraded Personal from the published RC1 package and
+Business from a source build at trusted `main` commit `c9d8601`, then removed
+each variant independently. Synthetic profile sentinels survived removal. The
+workflow also attempted signed-out Xvfb window startup and the Help update-check
+menu in a fresh D-Bus session: both windows launched, but the Personal update
+dialog did not appear and the smoke stopped before testing the Business menu.
+Xvfb does not verify real GNOME/KDE trays, notification integration, Wayland
+behavior or hardware acceleration. No screenshots or account data were retained.
 
 1. Record distro/version, desktop, display server, GPU, package hash and source
    commit. Start from a disposable snapshot with separate empty profile paths.
