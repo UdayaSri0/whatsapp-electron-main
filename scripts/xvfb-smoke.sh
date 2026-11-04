@@ -152,7 +152,6 @@ if sudo -u whatsapp-acceptance env -i \
         fi
 
         [[ -d "$XDG_CONFIG_HOME/WhatsApp" && -d "$XDG_CONFIG_HOME/WhatsApp-Business-Unofficial" ]]
-        [[ -f "$XDG_CONFIG_HOME/WhatsApp/Preferences" && -f "$XDG_CONFIG_HOME/WhatsApp-Business-Unofficial/Preferences" ]]
         grep -Fqx synthetic-personal-profile "$XDG_CONFIG_HOME/WhatsApp/acceptance-sentinel"
         grep -Fqx synthetic-business-profile "$XDG_CONFIG_HOME/WhatsApp-Business-Unofficial/acceptance-sentinel"
         exit "$menu_status"
