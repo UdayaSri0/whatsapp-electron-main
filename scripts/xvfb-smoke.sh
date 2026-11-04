@@ -3,8 +3,8 @@ set -Eeuo pipefail
 
 home_dir=/home/whatsapp-acceptance
 results_file=$(mktemp /tmp/whatsapp-xvfb-results.XXXXXX)
-chmod 644 "$results_file"
-sudo chown whatsapp-acceptance:whatsapp-acceptance "$results_file"
+sudo chgrp whatsapp-acceptance "$results_file"
+chmod 660 "$results_file"
 trap 'rm -f "$results_file"' EXIT
 fail() { printf 'FAIL: %s\n' "$*" >&2; }
 

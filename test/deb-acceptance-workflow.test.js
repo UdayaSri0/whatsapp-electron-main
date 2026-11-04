@@ -29,5 +29,6 @@ test('Xvfb acceptance keeps Electron sandboxing enabled', () => {
     assert.match(smoke, /getactivewindow/);
     assert.match(smoke, /tesseract/);
     assert.match(smoke, /mktemp \/tmp\/whatsapp-xvfb-results/);
+    assert.match(smoke, /chgrp whatsapp-acceptance/);
     assert.doesNotMatch(smoke, /RUNNER_TEMP.*whatsapp-xvfb-results/);
 });
