@@ -27,9 +27,22 @@ Current branch test, dependency and package evidence is recorded in
 | Historical Personal QR/login/text checks | BLOCKED | Issue #5 has these boxes checked, while the published RC notes say they were NOT verified; reconcile the evidence before treating them as PASS |
 | Business login and communication acceptance | BLOCKED | Requires policy clearance, any required written authorization, explicit account-owner approval and consenting test participants |
 | Cross-variant logout/session isolation with linked accounts | NOT RUN | Must be verified after account-use authorization; no account was linked during this task |
-| Real DEB package-manager install/upgrade/removal on target distros | NOT RUN | Use disposable VM/snapshot; package scripts must not run on the developer's host for this acceptance |
+| Real DEB package-manager install/upgrade/removal on target distros | BLOCKED | No disposable VM or container runtime is available; temporary-root file simulation passed, but maintainer scripts were not run |
 | Calls, notification and desktop matrix | NOT RUN | Follow [manual acceptance](manual-acceptance.md) |
 | GPL source and original contributor notices | PASS | `LICENSE`, `NOTICE`, contributor metadata and source archive retained; recheck bundled dependency notices for each release |
+
+## Acceptance recommendation
+
+- **Code merge: READY FOR CODE MERGE.** Node 22/24 tests and package CI pass;
+  the independent review found no code findings. The 15 moderate build-tree
+  minimatch records are documented and remain a maintainer risk decision.
+- **Personal prerelease: BLOCKED.** The real DEB package-manager lifecycle,
+  graphical update-menu flow and window/tray/launcher checks need an isolated
+  Ubuntu desktop environment. Personal publication policy clearance is also
+  still unresolved.
+- **Dual release: BLOCKED.** Personal acceptance blockers remain, and written
+  Business distribution authorization plus protected-environment review are
+  absent. Keep the Business distribution secret unset.
 
 ## What can be checked without a live account
 

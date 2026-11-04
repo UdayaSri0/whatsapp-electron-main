@@ -17,26 +17,34 @@ this checklist.
 
 | Acceptance case | Personal | Business | Safe evidence / notes |
 | --- | --- | --- | --- |
-| Fresh launch, app name, icon, executable, WM_CLASS and menu identity | NOT RUN | NOT RUN | In snapshot; do not log in |
-| Simultaneous launch and separate profile directories | PASS | PASS | AppImage startup on Ubuntu 26.10 GNOME Wayland; temporary shared XDG root; no account linked |
+| Fresh launch, app name, icon, WM_CLASS and menu identity | NOT RUN | NOT RUN | Final AppImages started headlessly; this does not verify a graphical window, icon or menu |
+| Simultaneous launch and separate profile directories | PASS | PASS | Final AppImages ran simultaneously for 15 seconds with separate temporary XDG config/data/cache roots; no account linked; runtime window identity not inspected |
 | QR linking and initial session creation | BLOCKED | BLOCKED | Issue #5 marks Personal complete, but published RC notes say NOT verified. Reconcile evidence; Business also needs policy clearance and explicit account-owner approval. |
 | Relaunch restores only that variant's linked session | BLOCKED | BLOCKED | Same conflicting historical Personal record; Business needs policy clearance and approval. Cross-variant logout independence remains NOT RUN. |
 | Send and receive text messages | BLOCKED | BLOCKED | Same conflicting historical Personal record; Business needs policy clearance and two consenting participants. |
 | Send and receive image and document attachments | BLOCKED | BLOCKED | Use non-sensitive test files only after authorization |
 | Notification delivery, unread count and focus behavior | BLOCKED | BLOCKED | Requires linked account; inspect no message content in logs |
-| Tray open, hide, restore, close-to-tray and quit behavior | NOT RUN | NOT RUN | Test GNOME/KDE where available; no account needed for shell behavior |
+| Tray open, hide, restore, close-to-tray and quit behavior | NOT RUN | NOT RUN | Requires graphical desktop interaction; headless startup does not exercise tray behavior |
 | Minimized incoming call ringing and restore | BLOCKED | BLOCKED | Requires authorized live call with consenting participant |
 | Outgoing/incoming voice and video calls | BLOCKED | BLOCKED | Test microphone/camera, two-way audio/video and call teardown |
 | Deny and re-enable microphone/camera permissions | NOT RUN | NOT RUN | Device permission UX may be checked without account; call recovery is BLOCKED |
 | Disconnect network and recover | NOT RUN | NOT RUN | Local reconnect behavior may be checked signed out; message continuity is BLOCKED |
-| Help → Check for Updates and opt-in setting | NOT RUN | NOT RUN | Verify offline/rate-limit messaging, Personal asset match, Business restriction, and that automatic checks stay off until enabled; do not install from the prompt |
-| Install both DEBs together; verify launcher and package identities | NOT RUN | NOT RUN | Disposable VM only; no host package database changes |
-| Upgrade each package over an older build | NOT RUN | NOT RUN | Snapshot rollback; verify package paths and test profile sentinel survive |
-| Remove one package while the other remains installed | NOT RUN | NOT RUN | Snapshot rollback; verify the other launcher and profile sentinel survive |
-| Remove either package and preserve its user profile | NOT RUN | NOT RUN | Use a synthetic sentinel in temporary XDG storage, never a real profile |
+| Help → Check for Updates and opt-in setting | NOT RUN | NOT RUN | API-only Personal check returned `current`; Business returned `restricted`. Automated tests cover newer releases, offline/rate limits, safe links and opt-in. Menu interaction was not run. |
+| Package names, executable paths, desktop files and icons | PASS | PASS | `dpkg-deb` metadata and payload inspection; identities are distinct. Desktop click/WM_CLASS/icon rendering remain NOT RUN. |
+| Install both DEBs together; verify launcher and package identities | BLOCKED | BLOCKED | No disposable Ubuntu VM/container runtime is available. Do not run maintainer scripts against the host. |
+| Upgrade each package over an older build | BLOCKED | BLOCKED | Requires isolated package database and snapshot rollback; temporary-root file simulation passed but does not run maintainer scripts. |
+| Remove one package while the other remains installed | BLOCKED | BLOCKED | Requires isolated package manager; static removal checks and temporary-root simulation passed. |
+| Remove either package and preserve its user profile | BLOCKED | BLOCKED | Real package-manager removal not run. Synthetic profile sentinels survived the temporary-root simulation. |
 | X11, Ubuntu/Mint, KDE and available NVIDIA systems | NOT RUN | NOT RUN | Test only on available hardware; do not change drivers or security settings |
 
 ## Manual sequence after authorization
+
+On 2026-11-04 the available host was Ubuntu 26.10 Wayland, without QEMU,
+Docker, Podman or an LXD/Incus service. A user-namespace overlay mount probe
+failed. No package manager was run against the host. The generated DEB
+maintainer scripts invoke `update-alternatives` and may update AppArmor, so
+actual package-manager acceptance remains BLOCKED until an isolated Ubuntu
+snapshot is available.
 
 1. Record distro/version, desktop, display server, GPU, package hash and source
    commit. Start from a disposable snapshot with separate empty profile paths.
