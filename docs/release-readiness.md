@@ -27,8 +27,8 @@ Current branch test, dependency and package evidence is recorded in
 | Historical Personal QR/login/text checks | BLOCKED | Issue #5 has these boxes checked, while the published RC notes say they were NOT verified; reconcile the evidence before treating them as PASS |
 | Business login and communication acceptance | BLOCKED | Requires policy clearance, any required written authorization, explicit account-owner approval and consenting test participants |
 | Cross-variant logout/session isolation with linked accounts | NOT RUN | Must be verified after account-use authorization; no account was linked during this task |
-| Real DEB package-manager install/upgrade/removal on Ubuntu 24.04 | PASS | Disposable GitHub-hosted runner run [41779521078](https://github.com/UdayaSri0/whatsapp-electron-main/actions/runs/41779521078): fresh install, coexistence, RC1→RC2 upgrades, independent removal, integration cleanup and synthetic profile preservation passed |
-| Xvfb window and Help update-menu smoke | NOT VERIFIED | Run 41780841459 launched both windows but did not open Personal's Help dialog and stopped before Business. The previous test assumed Alt+H despite no `&` mnemonic; the revised independent checks have not completed. See [manual acceptance](manual-acceptance.md). |
+| Real DEB package-manager install/upgrade/removal on Ubuntu 24.04 | PASS | Disposable GitHub-hosted runner run [41792547119](https://github.com/UdayaSri0/whatsapp-electron-main/actions/runs/41792547119): fresh install, coexistence, RC1→RC2 upgrades, independent removal, integration cleanup and synthetic profile preservation passed |
+| Xvfb Electron menu and update-status checks | PASS (Xvfb only) | Run [41792547119](https://github.com/UdayaSri0/whatsapp-electron-main/actions/runs/41792547119) independently verified Personal's current-release notice and Business's restricted-distribution message. Real GNOME/KDE trays, notifications, Wayland, GPU and launcher behavior remain NOT RUN; see [manual acceptance](manual-acceptance.md). |
 | Calls, notifications and real desktop matrix | NOT RUN | Follow [manual acceptance](manual-acceptance.md); live account checks require policy clearance and account-owner approval |
 | GPL source and original contributor notices | PASS | `LICENSE`, `NOTICE`, contributor metadata and source archive retained; recheck bundled dependency notices for each release |
 
@@ -39,10 +39,10 @@ Current branch test, dependency and package evidence is recorded in
   minimatch records are documented. Proposed maintainer disposition: accept
   this build/CI availability risk for code merge only; no maintainer sign-off
   has been recorded yet, and this is not release risk acceptance.
-- **Personal prerelease: BLOCKED.** Real Ubuntu 24.04 DEB lifecycle passes, but
-  the Xvfb Help update-menu check failed and native desktop launcher, tray,
-  notification and linked-account checks remain incomplete. Personal
-  publication policy clearance is also unresolved.
+- **Personal prerelease: BLOCKED.** Ubuntu 24.04 DEB lifecycle and Xvfb Help
+  update-status checks pass, but native desktop launcher, tray, notification
+  and linked-account checks remain incomplete. Personal publication policy
+  clearance is also unresolved.
 - **Dual release: BLOCKED.** Personal acceptance blockers remain, and written
   Business distribution authorization plus protected-environment review are
   absent. Keep the Business distribution secret unset.
@@ -67,9 +67,9 @@ the host. Removal scripts are inspected statically by `npm run verify:packages`.
 Actual local package-manager lifecycle acceptance remains NOT RUN, to avoid
 changing the developer host. The dedicated trusted-branch GitHub Actions
 workflow completed real install, upgrade and removal scripts in an ephemeral
-`ubuntu-24.04` runner; run 41779521078 passed and is recorded in the manual
+`ubuntu-24.04` runner; run 41792547119 passed and is recorded in the manual
 acceptance checklist. CI built the RC2 DEBs from commit
-`de4aa85d1f0f79e6f6f361a3d522fd49be666906` and verified embedded commit/hash
+`90bdbdb002db7f01dea78cc7a32390eac9a03319` and verified embedded commit/hash
 provenance. No packages or sensitive diagnostics were uploaded from that run.
 
 ## Checks requiring further authorization

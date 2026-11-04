@@ -29,9 +29,9 @@ this checklist.
 | Outgoing/incoming voice and video calls | BLOCKED | BLOCKED | Test microphone/camera, two-way audio/video and call teardown |
 | Deny and re-enable microphone/camera permissions | NOT RUN | NOT RUN | Device permission UX may be checked without account; call recovery is BLOCKED |
 | Disconnect network and recover | NOT RUN | NOT RUN | Local reconnect behavior may be checked signed out; message continuity is BLOCKED |
-| Help → Check for Updates and opt-in setting | NOT VERIFIED | NOT VERIFIED | Run 41780841459 found both app windows but did not open the Personal dialog, then stopped before Business. Alt+H lacked a mnemonic because the label was plain `Help`; the replacement `&Help`/focus/OCR harness has not yet completed a valid run. Business remains distribution-restricted. |
+| Help → Check for Updates status | PASS (Xvfb) | PASS (Xvfb) | Run [41792547119](https://github.com/UdayaSri0/whatsapp-electron-main/actions/runs/41792547119) independently opened both menus and verified Personal's current-release text and Business's distribution-restricted text. Native GNOME/KDE menu rendering and desktop integration remain NOT RUN. |
 | Package names, executable paths, desktop files and icons | PASS | PASS | `dpkg-deb` metadata and payload inspection; identities are distinct. Desktop click/WM_CLASS/icon rendering remain NOT RUN. |
-| Install both DEBs together; verify launcher and package identities | PASS | PASS | GitHub Actions run [41779521078](https://github.com/UdayaSri0/whatsapp-electron-main/actions/runs/41779521078), Ubuntu 24.04 disposable runner: installed RC2 packages together, verified versions, unique executable/desktop identities, alternatives and AppArmor registration. This does not verify click-to-launch or icon rendering in GNOME/KDE. |
+| Install both DEBs together; verify launcher and package identities | PASS | PASS | GitHub Actions run [41792547119](https://github.com/UdayaSri0/whatsapp-electron-main/actions/runs/41792547119), Ubuntu 24.04 disposable runner: installed RC2 packages together, verified versions, unique executable/desktop identities, alternatives and AppArmor registration. This does not verify click-to-launch or icon rendering in GNOME/KDE. |
 | Upgrade each package over an older build | PASS | PASS | Same run upgraded Personal from the SHA256-verified published RC1 DEB and Business from a source build at trusted `main` commit `c9d8601` to RC2. |
 | Remove one package while the other remains installed | PASS | PASS | Same run performed independent removals in both orders; checked the remaining variant's files and integration entries, then checked cleanup of package-owned files, desktop entries, alternatives and AppArmor registrations. `update-alternatives` emitted transient dangling-link cleanup warnings; final state assertions passed. |
 | Remove either package and preserve its user profile | PASS | PASS | Same run used synthetic profile sentinels; both survived package removal. No real user profile or credentials were used. |
@@ -56,8 +56,9 @@ It has read-only repository permissions, checkout credentials are not persisted,
 and it uses no repository secrets or artifact uploads. The runner builds both
 RC2 DEBs from the checked-out commit, verifies their recorded commit and hashes,
 then runs actual package-manager scripts inside the disposable hosted VM. Run
-41779521078 on 2026-11-04 passed the lifecycle checks on committed source
-`de4aa85d1f0f79e6f6f361a3d522fd49be666906`. The full test suite also passed
+[41792547119](https://github.com/UdayaSri0/whatsapp-electron-main/actions/runs/41792547119)
+on 2026-11-04 passed the lifecycle checks on committed source
+`90bdbdb002db7f01dea78cc7a32390eac9a03319`. The full test suite also passed
 after package creation on Node 22 (97/97) and Node 24 (97/97).
 
 The lifecycle checks installed each RC2 package, verified their coexistence
@@ -66,18 +67,19 @@ Business from a source build at trusted `main` commit `c9d8601`, then removed
 each variant independently. Synthetic profile sentinels survived removal. The
 workflow also attempted signed-out Xvfb window startup and the Help update-check
 menu in a fresh D-Bus session. Run 41780841459 found both windows but did not
-open the Personal dialog; it stopped before Business. The old test sent Alt+H
-without a menu mnemonic and also used an unchecked fixed F10/arrow sequence.
-This establishes a defect in the test's activation assumptions, not a defect in
-the update handler. The revised test gives Help Electron's documented Alt+H
-mnemonic, records title, WM_CLASS, active window and focus, checks Personal and
-Business independently, and validates only each static update dialog's status
-text using a temporary dialog-only image that is deleted. Runs 41787240762 and
-41788938969 did not reach app startup because the isolated test account could
-not write the runner's result-file path. The final runner-owned output capture
-still needs a completed run before either result can be marked PASS. Xvfb cannot
-verify real GNOME/KDE trays, notification integration, Wayland behavior or
-hardware acceleration. No screenshots or account data are uploaded.
+open the Personal dialog; the old test tried Alt+H without a menu mnemonic and
+used an unchecked fixed F10/arrow sequence. That was a test activation flaw;
+there was no evidence of an application update-handler defect. The application
+now marks Help with Electron's documented Alt+H mnemonic. The revised test
+records title, WM_CLASS, active window and focus, checks Personal and Business
+independently, and validates each static update dialog's expected text from a
+temporary dialog-only image that is deleted. After two result-file permission
+failures, runner-owned output capture succeeded in run 41792547119: Personal
+displayed “You are using the latest matching release.” and Business displayed
+the public-distribution restriction. Both Xvfb menu checks are PASS. This is
+real Electron menu interaction under Xvfb, not a GNOME/KDE desktop test. Xvfb
+does not verify GNOME/KDE trays, notifications, Wayland behavior or hardware
+acceleration. No screenshots or account data were uploaded.
 
 1. Record distro/version, desktop, display server, GPU, package hash and source
    commit. Start from a disposable snapshot with separate empty profile paths.
