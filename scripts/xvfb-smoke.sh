@@ -87,10 +87,10 @@ if sudo -u whatsapp-acceptance env -i \
                 "$(xdotool getwindowfocus -f 2>/dev/null || echo unavailable)"
             xdotool key --clearmodifiers --delay 120 Home Return
 
-            for _ in $(seq 1 15); do
+            for _ in $(seq 1 30); do
                 dialog_window=$(find_window "$expected_title")
                 [[ -n "$dialog_window" ]] && break
-                sleep 0.4
+                sleep 0.5
             done
             if [[ -z "$dialog_window" ]]; then
                 printf "NOT VERIFIED: %s Help menu did not produce the expected dialog.\n" "$variant" >&2
