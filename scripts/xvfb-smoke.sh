@@ -3,19 +3,15 @@ set -Eeuo pipefail
 
 home_dir=/home/whatsapp-acceptance
 results_file=$(mktemp /tmp/whatsapp-xvfb-results.XXXXXX)
-sudo chgrp whatsapp-acceptance "$results_file"
-chmod 660 "$results_file"
 trap 'rm -f "$results_file"' EXIT
-fail() { printf 'FAIL: %s\n' "$*" >&2; }
-
 smoke_status=0
-sudo -u whatsapp-acceptance env -i \
+
+if sudo -u whatsapp-acceptance env -i \
     HOME="$home_dir" \
     PATH=/usr/local/bin:/usr/bin:/bin \
     XDG_CONFIG_HOME="$home_dir/.config" \
     XDG_DATA_HOME="$home_dir/.local/share" \
     XDG_CACHE_HOME="$home_dir/.cache" \
-    RESULT_FILE="$results_file" \
     xvfb-run -a -s '-screen 0 1280x800x24 -nolisten tcp' \
     dbus-run-session -- /bin/bash -euo pipefail -c '
         ulimit -c 0
@@ -47,7 +43,7 @@ sudo -u whatsapp-acceptance env -i \
             while IFS= read -r window; do
                 title=$(xdotool getwindowname "$window" 2>/dev/null || true)
                 if [[ "$title" == "$expected" ]]; then
-                    printf '%s\n' "$window"
+                    printf "%s\n" "$window"
                     return 0
                 fi
             done < <(xdotool search --onlyvisible --name . 2>/dev/null || true)
@@ -68,7 +64,6 @@ sudo -u whatsapp-acceptance env -i \
         check_update_menu() {
             local variant=$1 expected_title=$2 expected_text=$3 window=$4
             local active focus dialog_window image recognized
-            printf "DIAG %s activating window %s\n" "$variant" "$window"
             wmctrl -ia "$window"
             for _ in $(seq 1 20); do
                 active=$(xdotool getactivewindow 2>/dev/null || true)
@@ -80,7 +75,7 @@ sudo -u whatsapp-acceptance env -i \
             focus=$(xdotool getwindowfocus -f 2>/dev/null || true)
             log_windows "$variant before-menu" "$window"
             if [[ "$active" != "$window" || -z "$focus" ]]; then
-                printf "NOT VERIFIED: %s window could not be focused (active=%s focus=%s).\n" "$variant" "$active" "$focus" >&2
+                printf "NOT VERIFIED: %s window focus was not confirmed (active=%s focus=%s).\n" "$variant" "$active" "$focus" >&2
                 return 1
             fi
 
@@ -103,20 +98,19 @@ sudo -u whatsapp-acceptance env -i \
                 return 1
             fi
 
-            # Capture only the static native update dialog, OCR it in memory,
-            # and never print or upload the image or recognized text.
+            # Read only the static update dialog; never log or upload the image or recognized text.
             image=$(mktemp --suffix=.png "${TMPDIR:-/tmp}/whatsapp-${variant}-dialog.XXXXXX")
             if ! import -window "$dialog_window" "$image" 2>/dev/null; then
                 rm -f "$image"
                 wmctrl -ic "$dialog_window" 2>/dev/null || true
-                printf "NOT VERIFIED: %s update dialog could not be captured for text validation.\n" "$variant" >&2
+                printf "NOT VERIFIED: %s dialog could not be captured for status validation.\n" "$variant" >&2
                 return 1
             fi
             recognized=$(tesseract "$image" stdout 2>/dev/null | tr "[:upper:]" "[:lower:]" | tr -s "[:space:]" " ") || recognized=
             rm -f "$image"
             if ! grep -Fq "$expected_text" <<<"$recognized"; then
                 wmctrl -ic "$dialog_window" 2>/dev/null || true
-                printf "NOT VERIFIED: %s update dialog did not contain the expected status text.\n" "$variant" >&2
+                printf "NOT VERIFIED: %s dialog did not contain the expected status text.\n" "$variant" >&2
                 return 1
             fi
             printf "PASS: %s Help → Check for Updates displayed its expected status.\n" "$variant"
@@ -124,20 +118,21 @@ sudo -u whatsapp-acceptance env -i \
             sleep 0.25
         }
 
-        : >"$RESULT_FILE"
+        menu_status=0
         setsid /usr/bin/whatsapp >/dev/null 2>&1 &
         personal_pid=$!
         personal_window=$(wait_window "WhatsApp" "$personal_pid" || true)
         if [[ -n "$personal_window" ]]; then
             printf "PASS: Personal signed-out window started independently.\n"
             if check_update_menu Personal "Check for Updates" "you are using the latest matching release" "$personal_window"; then
-                printf "Personal: PASS — current release status verified.\n" >>"$RESULT_FILE"
+                printf "Personal: PASS — current release status verified.\n"
             else
-                printf "Personal: NOT VERIFIED — Help menu or expected update status was not confirmed.\n" >>"$RESULT_FILE"
+                printf "Personal: NOT VERIFIED — Help menu or expected update status was not confirmed.\n"
+                menu_status=1
             fi
         else
-            printf "Personal: NOT VERIFIED — signed-out window did not start.\n" >>"$RESULT_FILE"
-            fail "Personal window did not appear"
+            printf "Personal: NOT VERIFIED — signed-out window did not start.\n"
+            menu_status=1
         fi
 
         setsid /usr/bin/whatsapp-business-unofficial >/dev/null 2>&1 &
@@ -146,32 +141,38 @@ sudo -u whatsapp-acceptance env -i \
         if [[ -n "$business_window" ]]; then
             printf "PASS: Business signed-out window started independently.\n"
             if check_update_menu Business "Check for Updates" "public distribution is unauthorized" "$business_window"; then
-                printf "Business: PASS — distribution restriction verified.\n" >>"$RESULT_FILE"
+                printf "Business: PASS — distribution restriction verified.\n"
             else
-                printf "Business: NOT VERIFIED — Help menu or restriction message was not confirmed.\n" >>"$RESULT_FILE"
+                printf "Business: NOT VERIFIED — Help menu or restriction message was not confirmed.\n"
+                menu_status=1
             fi
         else
-            printf "Business: NOT VERIFIED — signed-out window did not start.\n" >>"$RESULT_FILE"
-            fail "Business window did not appear"
+            printf "Business: NOT VERIFIED — signed-out window did not start.\n"
+            menu_status=1
         fi
 
         [[ -d "$XDG_CONFIG_HOME/WhatsApp" && -d "$XDG_CONFIG_HOME/WhatsApp-Business-Unofficial" ]]
         [[ -f "$XDG_CONFIG_HOME/WhatsApp/Preferences" && -f "$XDG_CONFIG_HOME/WhatsApp-Business-Unofficial/Preferences" ]]
         grep -Fqx synthetic-personal-profile "$XDG_CONFIG_HOME/WhatsApp/acceptance-sentinel"
         grep -Fqx synthetic-business-profile "$XDG_CONFIG_HOME/WhatsApp-Business-Unofficial/acceptance-sentinel"
-        grep -q "NOT VERIFIED" "$RESULT_FILE" && exit 1 || true
-    ' || smoke_status=$?
-
-if [[ ! -s "$results_file" ]]; then
-    printf 'Personal: NOT VERIFIED — Xvfb or D-Bus session did not complete.\nBusiness: NOT VERIFIED — Xvfb or D-Bus session did not complete.\n' >"$results_file"
-    smoke_status=1
+        exit "$menu_status"
+    ' 2>&1 | tee "$results_file"; then
+    smoke_status=0
+else
+    smoke_status=$?
 fi
-cat "$results_file"
+
+if ! grep -q '^Personal: ' "$results_file"; then
+    printf 'Personal: NOT VERIFIED — Xvfb or D-Bus session did not complete.\n' | tee -a "$results_file"
+fi
+if ! grep -q '^Business: ' "$results_file"; then
+    printf 'Business: NOT VERIFIED — Xvfb or D-Bus session did not complete.\n' | tee -a "$results_file"
+fi
 
 if [[ -n "${GITHUB_STEP_SUMMARY:-}" ]]; then
     {
         printf '\n### Xvfb signed-out Electron menu check\n\n'
-        sed 's/^/- /' "$results_file"
+        grep -E '^(Personal|Business): (PASS|NOT VERIFIED)' "$results_file" | sed 's/^/- /'
         printf '\n- LIMIT: Xvfb checks Electron menu input and static update-dialog text, not GNOME/KDE integration, real tray/notifications, Wayland, or hardware acceleration. Dialog-only temporary images were deleted; no screenshots or profile data were uploaded.\n'
     } >>"$GITHUB_STEP_SUMMARY"
 fi
