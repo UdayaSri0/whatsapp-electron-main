@@ -14,7 +14,10 @@ function checkDirectory(directory) {
 }
 
 for (const directory of ['src', 'config', 'scripts', 'test']) checkDirectory(directory);
-for (const file of ['arch-pkg/PKGBUILD', 'arch-pkg/whatsapp.sh']) {
+for (const file of [
+    'arch-pkg/PKGBUILD', 'arch-pkg/whatsapp.sh',
+    'scripts/ubuntu-deb-acceptance.sh', 'scripts/xvfb-smoke.sh',
+]) {
     execFileSync('bash', ['-n', file], { stdio: 'inherit' });
 }
 console.log('JavaScript and packaging shell syntax checks passed.');

@@ -31,10 +31,10 @@ this checklist.
 | Disconnect network and recover | NOT RUN | NOT RUN | Local reconnect behavior may be checked signed out; message continuity is BLOCKED |
 | Help → Check for Updates and opt-in setting | NOT RUN | NOT RUN | API-only Personal check returned `current`; Business returned `restricted`. Automated tests cover newer releases, offline/rate limits, safe links and opt-in. Menu interaction was not run. |
 | Package names, executable paths, desktop files and icons | PASS | PASS | `dpkg-deb` metadata and payload inspection; identities are distinct. Desktop click/WM_CLASS/icon rendering remain NOT RUN. |
-| Install both DEBs together; verify launcher and package identities | BLOCKED | BLOCKED | No disposable Ubuntu VM/container runtime is available. Do not run maintainer scripts against the host. |
-| Upgrade each package over an older build | BLOCKED | BLOCKED | Requires isolated package database and snapshot rollback; temporary-root file simulation passed but does not run maintainer scripts. |
-| Remove one package while the other remains installed | BLOCKED | BLOCKED | Requires isolated package manager; static removal checks and temporary-root simulation passed. |
-| Remove either package and preserve its user profile | BLOCKED | BLOCKED | Real package-manager removal not run. Synthetic profile sentinels survived the temporary-root simulation. |
+| Install both DEBs together; verify launcher and package identities | NOT RUN | NOT RUN | Dedicated GitHub Actions lifecycle workflow added; results remain blocked until a successful run on the trusted branch. |
+| Upgrade each package over an older build | NOT RUN | NOT RUN | Workflow uses the published Personal RC1 package and a provenance-checked Business RC1 build from `c9d8601`; results remain blocked until it passes. |
+| Remove one package while the other remains installed | NOT RUN | NOT RUN | Workflow executes real `apt-get remove` operations and checks alternatives, AppArmor profiles, desktop files and package-owned files. |
+| Remove either package and preserve its user profile | NOT RUN | NOT RUN | Workflow uses synthetic profile sentinels only; results remain blocked until it passes. |
 | X11, Ubuntu/Mint, KDE and available NVIDIA systems | NOT RUN | NOT RUN | Test only on available hardware; do not change drivers or security settings |
 
 ## Manual sequence after authorization
@@ -42,11 +42,29 @@ this checklist.
 On 2026-11-04 the available host was Ubuntu 26.10 Wayland. VirtualBox 7.2.20
 was installed, but its only registered VM was a powered-off GNS3 VM with no
 snapshots; no Ubuntu 24.04 VM or ISO was available. The GNS3 VM was not touched.
-QEMU, Docker, Podman and an LXD/Incus service were unavailable. A user-namespace
-overlay mount probe failed. No package manager was run against the host. The
-generated DEB maintainer scripts invoke `update-alternatives` and may update
-AppArmor, so actual package-manager acceptance remains BLOCKED until an isolated
-Ubuntu snapshot is available.
+The official Ubuntu 24.04.5.1 ISO transfer was too slow to complete, so no local
+guest was created. No package manager was run against the host. The generated
+DEB maintainer scripts invoke `update-alternatives` and register AppArmor
+profiles, so real package-manager acceptance must run in the disposable
+GitHub-hosted `ubuntu-24.04` runner described below.
+
+## Automated isolated package acceptance
+
+`.github/workflows/deb-acceptance.yml` runs only on pushes to the trusted
+`feat/stable-update-hardening` branch in `UdayaSri0/whatsapp-electron-main`.
+It has read-only repository permissions, checkout credentials are not persisted,
+and it uses no repository secrets or artifact uploads. The runner builds both
+RC2 DEBs from the checked-out commit, verifies their recorded commit and hashes,
+then runs actual package-manager scripts inside the disposable hosted VM.
+
+The lifecycle checks install each RC2 package, verify their coexistence and
+distinct files, upgrade Personal from the published RC1 package and Business
+from a source build at trusted `main` commit `c9d8601`, then remove each variant
+independently. Synthetic profile sentinels verify that package removal does not
+touch user data. The workflow also attempts signed-out Xvfb window startup and
+the Help update-check menu in a fresh D-Bus session. The initial workflow run
+must pass before those cases are marked PASS; no result is inferred from the
+workflow definition alone.
 
 1. Record distro/version, desktop, display server, GPU, package hash and source
    commit. Start from a disposable snapshot with separate empty profile paths.

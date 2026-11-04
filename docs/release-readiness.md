@@ -63,8 +63,11 @@ the OS temporary directory. It simulates package install, higher-version
 payload overlay and package-owned-file removal there, with synthetic profile
 sentinels. It does **not** run Debian maintainer scripts or invoke `dpkg -i` on
 the host. Removal scripts are inspected statically by `npm run verify:packages`.
-Actual package-manager lifecycle acceptance is BLOCKED here and belongs in a
-disposable Ubuntu VM snapshot that can be discarded.
+Actual local package-manager lifecycle acceptance is NOT RUN. A dedicated
+trusted-branch GitHub Actions workflow now runs real install, upgrade and
+removal scripts in an ephemeral `ubuntu-24.04` runner; prerelease readiness
+remains blocked until that workflow has a successful run and its results are
+recorded in the manual acceptance checklist.
 
 ## Checks requiring further authorization
 
